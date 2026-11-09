@@ -124,6 +124,7 @@ The diagram is structural; native font metrics determine final spacing.
 | Left / right | Edit the query normally while the search field is focused; move between cells while navigating the grid. |
 | Down from search | Enter result navigation, initially using the currently selected result. |
 | Up / down in grid | Move by the visible column count; Up from the first row returns to search. Define and test partial final rows. |
+| Partial final rows | Treat the short trailing row as a real case, not an edge case: Right and Down clamp to the last cell instead of wrapping, Left from a row's first cell moves to the previous row's last cell, and a one-cell final row still answers Up and Down. Confirm the choice during the M3 interaction review (§15). |
 | Typing while navigating results | Return to the search field and edit the query using ordinary text input. |
 | Enter | Insert the selected item exactly once. |
 | Command-Enter | Copy the selected Unicode string, close the picker, and return focus without automatic insertion. |
@@ -136,7 +137,7 @@ Confirm these search-field/result navigation rules with a small native interacti
 ### 4.3 Favourites, recents, and variants
 
 - A context menu and Command-D add/remove favourites. Persist their explicit order; an initial simple move-left/move-right action is sufficient before drag reordering.
-- Removing the final favourite leaves an intentionally empty section, rather than restoring the seed set.
+- Removing the final favourite leaves an intentionally empty section, rather than restoring the seed set. Settings' separate **Reset favourites** action restores that seed set; clearing every favourite is a different action, so the control must say which of the two it performs.
 - Deduplicate recents by exact sequence and cap stored history, initially at 50 entries. Show only the compact leading portion in the empty-query grid.
 - Provide Clear Recents in settings. Retain favourites separately.
 - Store the exact selected emoji variant. A small secondary variant chooser may expose skin tones for entries with defined variants; do not manufacture combinations by appending arbitrary modifiers.
