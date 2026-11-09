@@ -271,9 +271,24 @@ idle -> capturing -> browsing -> validating -> dispatching -> idle
                          +-> copy -> idle
 ```
 
+The diagram shows the shortcut path in brief. The table below is the complete list; every state other than `idle` can also end in `idle` through cancellation, a timeout, or target invalidation, and each such exit records whether Copy is still offered.
+
+| State | Work | Normal exits |
+| --- | --- | --- |
+| `idle` | No session. The typed-trigger adapter may hold its minimal candidate state (7.5). | `capturing` on invocation. |
+| `capturing` | Capture the target and its geometry under a deadline (6.1). | `browsing`, or `handoff` for typed invocation. |
+| `handoff` | Typed invocation only: the picker is visible and accepts query input, but insertion stays disabled until the source-side prefix and input order are reconciled (7.6). | `browsing` once settled; `browsing` in copy-only mode if they cannot be proved. |
+| `browsing` | The picker is key: search, selection, favourites. | `awaitingRelease` on Enter or click; `idle` after Copy. |
+| `awaitingRelease` | Output frozen; wait within a bound for the invocation/selection modifiers and the committing key or button to be released (7.3 and the rule below). | `validating`. |
+| `validating` | Dismiss the panel, return focus, and revalidate the target; for typed invocation, select the frozen activation range (7.6). | `dispatching`; `idle` with Copy offered on failure. |
+| `dispatching` | One dispatch through the transport chosen for the session. | `idle`. |
+
+A paste-backend clipboard restoration (7.4) can outlive its session. A new session may start while one is pending, but must not start another clipboard transaction until it resolves, and a restoration never acts on behalf of a later session.
+
 - Only one session and one insertion dispatch can be active.
 - A shortcut invocation supersedes pending `::` recognition, clears its candidate state, and preserves text already typed in the source. It starts a fresh shortcut session rather than inheriting a marker-removal range. An already visible picker still follows the normal shortcut-to-cancel rule.
 - Repeated Enter/click events cannot dispatch twice.
+- The release wait before dispatch (7.3) also covers the key or mouse button that committed the choice. If focus returned while Return was still down, the source could receive its key-up or auto-repeated Return events and insert line breaks.
 - Cancelling invalidates pending AX requests, search results, scheduled paste actions, and focus restoration callbacks.
 - A late completion cannot revive a panel, modify recents for another session, or send text.
 - Normal cancellation restores focus only if the original context is still current. It must not reactivate an app the user deliberately left.
@@ -284,7 +299,7 @@ Check permission, process identity/liveness, original window/element validity, a
 
 Treat secure/password fields and active secure-input conditions conservatively. Do not inspect their text or synthesize insertion into them. If an element cannot be classified or revalidated sufficiently, offer Copy and ask the user to place the caret and invoke Charms again.
 
-If the user switches to a different field/window while the picker is open, cancel or require reinvocation. Never silently retarget. A terminated app, recycled process identifier, replaced web element, or closed document must invalidate the snapshot.
+If the user switches to a different field/window while the picker is open, cancel or require reinvocation. Never silently retarget. A terminated app, recycled process identifier, replaced web element, or closed document must invalidate the snapshot. Process identifiers are reused, so compare a stable identity, such as the captured `NSRunningApplication` with its launch date, or the process audit token, rather than the number alone.
 
 ### 7.3 Choose a transport before sending text
 
@@ -505,7 +520,7 @@ Focus automated tests on decisions with meaningful independent expected outcomes
 
 - Placement geometry: left/right/above/below primary display, mixed scale metadata, zero-width carets, spanning windows, usable-frame edges, and missing geometry.
 - Session state: duplicate Enter, cancellation during capture/validation, late AX/search callbacks, app exit, changed target, and overlapping invocations.
-- Focus handoff and modifiers: dispatch cannot occur while the picker is the receiver, while physical modifiers remain held, or after the source field changes.
+- Focus handoff and modifiers: dispatch cannot occur while the picker is the receiver, while physical modifiers or the committing key remain held, or after the source field changes.
 - Typed-trigger state: committed two-colon recognition, allowed boundaries, timeouts, resets, exclusions, auto-repeat, observer shutdown, synthetic-event filtering, and no reentrancy from the picker.
 - Activation replacement: correct UTF-16 ranges after emoji, fast source/panel query splits in every position, source edits before commit, failed selection preparation, Escape/Copy preserving source activation text, and no blind deletion or duplicate transport.
 - Transport selection: choose a method before dispatch; no implicit second transport after an unconfirmed first dispatch.
@@ -529,6 +544,7 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P0 | Selected text in the source | One insertion replaces the selected range; unrelated text and formatting remain intact. |
 | P0 | Arrow, non-BMP emoji, skin tone, ZWJ, flag, and keycap fixtures | Exact complete strings are inserted; Undo behaves normally in supported apps. |
 | P0 | Double Enter, Enter plus click, or held shortcut | At most one insertion or toggle transition occurs. |
+| P0 | Return held down after Enter | No extra line break reaches the source; dispatch waits for the release, or the session falls back to Copy. |
 | P0 | User changes app/window/field while picker is open | Session cancels or becomes copy-only; text is never sent to the new target. |
 | P0 | Source quits, document closes, or AX element becomes stale | No insertion and no forced reactivation of an unrelated app. |
 | P0 | Password/secure field or secure-input condition | Automatic insertion is unavailable; no source text is read. |
