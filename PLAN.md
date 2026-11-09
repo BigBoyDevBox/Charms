@@ -30,7 +30,7 @@ The repository currently contains the project license and no application impleme
 | Platform | macOS 14 or later; confirm this deployment target during the native spike. |
 | Hardware | Design for Apple Silicon and Intel; publish a universal build only after both architectures have build coverage and real-machine validation. |
 | Language and UI | Swift, AppKit for application/window integration, SwiftUI for the picker and settings where it behaves reliably. |
-| Application style | Menu-bar accessory app, with no persistent Dock icon or ordinary document window. |
+| Application style | Menu-bar accessory app, with no persistent Dock icon or ordinary document window. Enforce single-instance execution at startup via `NSRunningApplication`; opening a second instance activates the running app's settings window and terminates cleanly. |
 | Shortcut | Offer the user's preferred Control-P (`⌃P`), configurable and subject to successful registration. |
 | Typed trigger | Optional `::` recognition, enabled explicitly with any required Input Monitoring access; the shortcut remains available independently. |
 | Distribution | Direct distribution, initially through GitHub releases; signed and notarized for public builds. |
@@ -272,7 +272,7 @@ idle -> capturing -> browsing -> validating -> dispatching -> idle
 ```
 
 - Only one session and one insertion dispatch can be active.
-- A shortcut invocation supersedes pending `::` recognition, clears its candidate state, and preserves text already typed in the source. It starts a fresh shortcut session rather than inheriting a marker-removal range. An already visible picker still follows the normal shortcut-to-cancel rule.
+- A shortcut invocation supersedes pending `::` recognition, clears its candidate state, and preserves text already typed in the source. It starts a fresh shortcut session rather than inheriting a marker-removal range. Pressing the shortcut while state is `capturing` immediately cancels in-flight capture and returns to `idle`. An already visible picker still follows the normal shortcut-to-cancel rule.
 - Repeated Enter/click events cannot dispatch twice.
 - Cancelling invalidates pending AX requests, search results, scheduled paste actions, and focus restoration callbacks.
 - A late completion cannot revive a panel, modify recents for another session, or send text.
@@ -329,7 +329,7 @@ Treat typed invocation as a separate input adapter, not a second picker or an un
 - Recognize the produced colon characters using the active input context, not hard-coded U.S. key positions. Confirm actual committed `::` text and any exactly tracked transition prefix in the source before enabling insertion.
 - The event notification may precede the source app updating its AX selection. Use a bounded asynchronous reconciliation step; if the marker cannot be confirmed, leave the source untouched and do not open automatically.
 - Before a trigger candidate, keep only minimal recognition state, such as a first-colon candidate, boundary state, source identity, and timestamp. After `::`, a bounded transient query-prefix buffer is allowed only for the handoff below. Do not buffer unrelated typing or log either form of state.
-- Reset on focus/caret changes, app switch, mouse navigation, nonmatching editing keys, timeout, sleep/lock, secure input, permission loss, or event-tap interruption. Ignore auto-repeat and Charms-generated events.
+- Reset on focus/caret changes, app switch, mouse navigation, nonmatching editing keys, timeout, sleep (`NSWorkspace.willSleepNotification`), screen lock (`com.apple.screenIsLocked`), secure input, permission loss, or event-tap interruption. When the screen locks or system sleeps, cancel any active picker session immediately without dispatching text or modifying the clipboard. Ignore auto-repeat and Charms-generated events.
 - Suspend new trigger recognition through the entire active invocation, including capture, transition, visible browsing, validation, and insertion handoff, so query text cannot trigger a second session.
 - Do not trigger from pasted text, dictation, or unproven synthetic input. Uncertain IME/marked-text composition disables automatic recognition in that context; the global shortcut still works.
 - Require an allowed boundary to avoid treating constructs such as `std::` as a command. Validate only the minimal source context needed for that decision.
@@ -421,7 +421,7 @@ Retain required Unicode/CLDR and any package notices in `THIRD_PARTY_NOTICES.md`
 - Keep runtime diagnostics limited to timings, error categories, transport choice, and coarse placement/fallback reasons. Avoid typed text and raw user content.
 - No telemetry or network access is needed for ordinary operation.
 - With typed recognition disabled, no global keyboard observer is installed. With it enabled, observation is local and ephemeral, limited to marker recognition and the bounded explicit-query handoff; unrelated typing is never retained.
-- Use the system login-item API when the user opts in; reflect actual registration state, including a disabled or approval-required login item.
+- Use the system login-item API (`SMAppService.mainApp`) when the user opts in; reflect actual registration state, including a disabled or approval-required login item (`SMAppService.status == .requiresApproval`). In the approval-required state, provide a direct affordance to open System Settings (`SMAppService.openSystemSettingsLoginItems()`) with clear recovery instructions.
 
 ## 10. Accessibility and interaction quality
 
@@ -442,7 +442,7 @@ Implement in small reviewable commits. The native risk spike is a gate for the b
 - [ ] Create the app target, shared scheme, unit tests, and a tiny native text-input harness.
 - [ ] Select and document the deployment target, toolchain, stable bundle identifier, and development signing approach.
 - [ ] Add README build/run instructions and a focused `.gitignore`; do not commit local IDE state or signing secrets.
-- [ ] Create a menu-bar accessory app with Settings and Quit.
+- [ ] Create a menu-bar accessory app with Settings and Quit, with single-instance enforcement.
 
 **Exit:** a fresh checkout builds and launches; the app can be quit cleanly, and pure tests run without Accessibility permission.
 
@@ -549,6 +549,8 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P1 | Shortcut collision, changed layout, or PopChar still owning `⌃P` | Conflict is recoverable; recorder labels remain accurate and another shortcut can be chosen. |
 | P1 | Keyboard-only use and VoiceOver | Search, selection, favourites, variants, insertion, Copy, and dismissal are reachable and named. |
 | P1 | Relaunch, sleep/wake, denied login item, and corrupt preferences | Settings recover predictably; Charms remains launchable and quit-able. |
+| P1 | Second instance launched while Charms is running | Activates the existing instance's settings window without duplicate menu-bar icons, duplicate event taps, or hot-key collisions. |
+| P1 | Screen lock or system sleep while picker is open | Picker cancels immediately; no document or clipboard modification occurs. |
 
 ### 12.3 Real application coverage
 
@@ -629,6 +631,8 @@ These references establish available platform/data capabilities. The placement, 
 - [Apple: request keyboard-listening access](https://developer.apple.com/documentation/coregraphics/cgrequestlisteneventaccess%28%29).
 - [Apple: pasteboard change count](https://developer.apple.com/documentation/appkit/nspasteboard/changecount).
 - [Apple: login item service](https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp).
+- [Apple: SMAppService status](https://developer.apple.com/documentation/servicemanagement/smappservice/status).
+- [Apple: SMAppService openSystemSettingsLoginItems](https://developer.apple.com/documentation/servicemanagement/smappservice/opensystemsettingsloginitems%28%29).
 - [Electron: accessibility integration](https://www.electronjs.org/docs/latest/tutorial/accessibility).
 - [Unicode Character Database](https://www.unicode.org/ucd/).
 - [Unicode Emoji specification, UTS #51](https://www.unicode.org/reports/tr51/).
