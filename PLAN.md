@@ -160,7 +160,7 @@ On first launch, explain Accessibility access in plain language: Charms uses it 
 
 Enabling `::` is a separate, opt-in step. Explain that recognizing it requires observing keyboard events and briefly tracking the explicit trigger/query transition, request Input Monitoring through the applicable public API if needed, and leave the keyboard-shortcut path usable when this permission is denied. Disabling the option removes the event observer and clears its transient state.
 
-The design does not require Screen Recording, microphone, contacts, or Full Disk Access. Keyboard observation runs only while the typed-trigger option is enabled and eligible. Validate the actual authorization requirements of each backend during the spike; add no permission without a demonstrated need.
+The design does not require Screen Recording, microphone, contacts, or Full Disk Access. Keyboard observation runs only while the typed-trigger option is enabled and eligible. Validate the actual authorization requirements of each backend during the spike; add no permission without a demonstrated need. In particular, the insertion backend posts synthetic events into other processes, which requires event-synthesizing access (`kTCCServicePostEvent`) in addition to AX inspection; both are grouped under Accessibility in System Settings. Preflight it with `CGPreflightPostEventAccess()`/`CGRequestPostEventAccess()` during the enable-insertion flow and verify the prompt and denial behaviour in the spike.
 
 ## 5. Native architecture
 
@@ -290,7 +290,7 @@ If the user switches to a different field/window while the picker is open, cance
 
 After freezing the selected output, wait for invocation/selection modifiers to be physically released within a bounded interval. Do not synthesize key-up events for keys the user is still holding. If modifiers remain held, keep a recoverable pending state or cancel; do not send altered text.
 
-Then dismiss/resign the panel, establish that the original app and exact target field are again the effective receiver, and revalidate immediately before dispatch. Prefer PID-addressed Quartz events where supported and tested. PID targeting alone does not prove that the correct field/window is focused; abort if that validation fails. Do not silently fall back to the global event stream.
+Then dismiss/resign the panel, establish that the original app and exact target field are again the effective receiver, and revalidate immediately before dispatch. Prefer PID-addressed Quartz events (`CGEvent.post(to:)`) where supported and tested. PID targeting alone does not prove that the correct field/window is focused; abort if that validation fails. Do not silently fall back to the global event stream. Posting synthetic events into another process requires event-synthesizing access (`kTCCServicePostEvent`), a distinct TCC service from AX inspection; fail predictably to the Copy path when it is unavailable.
 
 The spike must compare two methods using the same complete string fixtures:
 
@@ -598,6 +598,7 @@ The defaults above allow work to begin. Record evidence and adjust them at the r
 | Default insertion transport and per-app exceptions | Exact-string, selection, Undo, focus, and clipboard tests. | M1 |
 | Typed-marker observer, permissions, and supported contexts | Committed-text proof, fast-typing handoff/order, bounded range replacement, IME/layout tests, and exclusion behaviour. | M1/M4 |
 | Pasteboard restoration policy for supported apps | Demonstrated consumption/ownership behaviour and race tests. | M1/M4 |
+| Insertion-backend permission model | `kTCCServicePostEvent` preflight/request behaviour, its System Settings category, and the denied-permission fallback. | M1 |
 | Unicode/CLDR baseline and missing-glyph policy | Rendering on the minimum OS plus catalogue/search fixtures. | M2 |
 | Final cell size and keyboard navigation details | First-design review, increased text size, VoiceOver, and IME tests. | M3 |
 | Public signing/release configuration | Supplied Developer ID and a clean-install test. | M5 |
@@ -625,6 +626,8 @@ These references establish available platform/data capabilities. The placement, 
 - [Apple: window collection behaviour](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct).
 - [Apple: Unicode keyboard events and framework limitations](https://developer.apple.com/documentation/coregraphics/cgevent/keyboardsetunicodestring%28stringlength%3Aunicodestring%3A%29).
 - [Apple: process-addressed event dispatch](https://developer.apple.com/documentation/coregraphics/cgevent/posttopid%28_%3A%29).
+- [Apple: preflight event-synthesizing access](https://developer.apple.com/documentation/coregraphics/cgpreflightposteventaccess%28%29).
+- [Apple: request event-synthesizing access](https://developer.apple.com/documentation/coregraphics/cgrequestposteventaccess%28%29).
 - [Apple: preflight keyboard-listening access](https://developer.apple.com/documentation/coregraphics/cgpreflightlisteneventaccess%28%29).
 - [Apple: request keyboard-listening access](https://developer.apple.com/documentation/coregraphics/cgrequestlisteneventaccess%28%29).
 - [Apple: pasteboard change count](https://developer.apple.com/documentation/appkit/nspasteboard/changecount).
