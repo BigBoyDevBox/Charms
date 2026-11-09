@@ -74,7 +74,7 @@ Escape, clicking outside the panel, or pressing the shortcut again cancels the p
 ### Alternate journey: type `::`
 
 1. The user enables the typed-trigger option and grants the access it needs.
-2. In an eligible text field, the user types `::` at the start of a field or after an allowed boundary, initially whitespace or opening punctuation.
+2. In an eligible text field, the user types `::` at the start of a field or after an allowed boundary, initially whitespace only. Opening punctuation mostly admits code, such as Python's `arr[::2]` or Clojure's `(::kw`; add it later only if real use asks for it.
 3. The two colons enter the source normally. After confirming committed text in the original field, Charms opens the same search-focused picker beside them.
 4. The user can continue typing without an intentional pause. For `::arrow`, any query prefix that reaches the source during focus transfer is tracked and becomes the beginning of the picker query; later query characters go directly into the picker.
 5. On Enter, Charms validates the original field and exact tracked range, returns keyboard focus, and replaces the marker plus any verified source-side query prefix with the chosen string once.
@@ -329,13 +329,15 @@ Treat typed invocation as a separate input adapter, not a second picker or an un
 - Recognize the produced colon characters using the active input context, not hard-coded U.S. key positions. Confirm actual committed `::` text and any exactly tracked transition prefix in the source before enabling insertion.
 - The event notification may precede the source app updating its AX selection. Use a bounded asynchronous reconciliation step; if the marker cannot be confirmed, leave the source untouched and do not open automatically.
 - Before a trigger candidate, keep only minimal recognition state, such as a first-colon candidate, boundary state, source identity, and timestamp. After `::`, a bounded transient query-prefix buffer is allowed only for the handoff below. Do not buffer unrelated typing or log either form of state.
-- Reset on focus/caret changes, app switch, mouse navigation, nonmatching editing keys, timeout, sleep/lock, secure input, permission loss, or event-tap interruption. Ignore auto-repeat and Charms-generated events.
+- Reset on focus/caret changes, app switch, mouse navigation (observe mouse-down events in the same listen-only observer, since a click that moves the caret within one field changes no focused element), nonmatching editing keys (after a first colon, any key other than a second colon, including shortcuts such as ⌘V), timeout (initially about one second between the colons), sleep/lock, secure input, permission loss, or event-tap interruption. Ignore auto-repeat and Charms-generated events.
 - Suspend new trigger recognition through the entire active invocation, including capture, transition, visible browsing, validation, and insertion handoff, so query text cannot trigger a second session.
 - Do not trigger from pasted text, dictation, or unproven synthetic input. Uncertain IME/marked-text composition disables automatic recognition in that context; the global shortcut still works.
 - Require an allowed boundary to avoid treating constructs such as `std::` as a command. Validate only the minimal source context needed for that decision.
 - Ship a conservative, editable application exclusion list for apps with their own shortcode UI, code editors/terminals, password managers, and remote/virtualized input environments. Record the initial bundle IDs in data, not scattered conditionals.
 - Start with application-level exclusions. Per-website exclusions can follow later; do not inspect browsing URLs or page content merely to detect the marker.
 - Pause/disable must stop observation promptly. Recover an interrupted tap only while the option is still enabled and permissions/eligibility remain valid.
+- Paste and dictation insert text without colon key events, so the observer never sees them as typing. For key events, use the event's source fields (`kCGEventSourceStateID`, `kCGEventSourceUnixProcessID`) as evidence against synthetic input, and establish in the spike how reliably they separate it from hardware typing.
+- The boundary rule still admits real text: Haskell's `x :: Int`, Pandoc and Docusaurus fenced blocks that start a line with `:::`, and IPv6 addresses such as `::1` at the start of a field. Without a rule, the picker opens and the following keystrokes, such as ` Int`, land in its search field and are lost when the user dismisses it. Treat whitespace, a further colon, or a digit as the first character after the marker as a false trigger: do not open the picker, or, if it is already open, close it and write the picker-side text back once to the source through the session's validated transport, so a mistaken trigger costs no typing. If the field no longer validates, nothing is written.
 
 ### 7.6 Replace the marker without guessing
 
@@ -347,7 +349,7 @@ For typed invocation, derive and retain the marker's AX range using the source's
 - Reconcile the committed source substring and caret against those candidate events during focus transfer. Seed the query from the verified source prefix and append the panel-received remainder in proven order; do not duplicate or drop characters.
 - Freeze the exact replacement range as marker plus verified source-side prefix once handoff settles. Keep the prefix in the source until insertion is committed, so cancellation requires no destructive rollback.
 - Bound transition duration and buffered input, initially targeting at most 250 ms and 64 UTF-16 units, with sequence-safe limits. Tune from measurements. Only this activation transition may collect a query prefix; there is no general keystroke history.
-- Do not enable insertion until both the source range and input ordering are established. If the source changes unexpectedly, a bound is exceeded, composition is uncertain, or routing/order cannot be proved, preserve the source and fall back to Copy or cancel. Do not guess, delete, or replay keys into a potentially changed target.
+- Do not enable insertion until both the source range and input ordering are established. Hold, rather than drop, an Enter that arrives earlier, as it will when someone types `::arrow` and Enter in one motion: commit the selection that stands once the handoff settles within its bound, and fall back to Copy if it does not settle. An Enter that reaches the source before the picker is key is ordinary typing there: end the session without opening the picker and leave the source as typed. If the source changes unexpectedly, a bound is exceeded, composition is uncertain, or routing/order cannot be proved, preserve the source and fall back to Copy or cancel. Do not guess, delete, or replay keys into a potentially changed target.
 - This is a required feasibility check for uninterrupted `::arrow` typing at normal and high speed. If reliable reconciliation is not achievable with the selected public APIs, record that limitation and revise the trigger design explicitly before release; do not quietly assume that users will pause after `::`.
 
 This policy retains listen-only recognition. Suppressing/buffering arbitrary global input would need a separate design for lossless replay and cancellation and is not an implicit fallback.
@@ -356,7 +358,7 @@ On commit:
 
 1. Verify the same process, field, window, expected selection, literal marker, and tracked source-side prefix still exist.
 2. Ensure the source supports safely selecting the exact frozen activation range. Select only that marker/prefix; never send blind Backspaces.
-3. Perform the panel-to-source focus handoff and revalidate the expected activation selection.
+3. Perform the panel-to-source focus handoff and revalidate the expected activation selection. Some apps apply a selection only to a focused element, so establish per app in the spike whether step 2 must happen after the handoff.
 4. Dispatch the chosen output once using the already selected insertion transport.
 5. If selection preparation fails before dispatch, preserve the activation text and offer Copy. If preparation changed the selection but dispatch cannot start, restore the previous caret only if the source remains unchanged and current.
 
@@ -545,6 +547,8 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P0 | Held Shift/Command/Option during selection | No synthetic release of physical keys and no dispatch to the panel or unintended receiver. |
 | P1 | Display is unplugged, rearranged, or changes resolution | Session cancels/revalidates safely and the next invocation chooses the new correct display. |
 | P1 | IME marked text and candidate selection | Search composition works and candidate Return/Escape does not insert/cancel prematurely. |
+| P1 | `x :: Int`, a line starting with `:::`, and `::1` at the start of a field | The picker does not open, or closes, and the source holds exactly what was typed. |
+| P1 | Type `::arrow` and Enter in one motion, at normal and high speed | Enter is not lost: one arrow replaces the activation text once the handoff settles, or Copy is offered if it cannot settle. |
 | P1 | `std::`, a pasted `::`, rapid repeats, U.S. and at least one non-U.S. colon layout, and another app's shortcode UI | Only confirmed eligible committed markers invoke Charms independent of physical key position; exclusions/boundaries prevent duplicate or unwanted handling. |
 | P1 | Shortcut collision, changed layout, or PopChar still owning `⌃P` | Conflict is recoverable; recorder labels remain accurate and another shortcut can be chosen. |
 | P1 | Keyboard-only use and VoiceOver | Search, selection, favourites, variants, insertion, Copy, and dismissal are reachable and named. |
