@@ -16,7 +16,7 @@ The repository currently contains the project license and no application impleme
 
 - Press the configured shortcut, type a familiar name, select a character, and continue typing without moving the mouse.
 - Opening the picker never chooses the mouse display over a usable caret or focused-window display.
-- Escape restores the original typing context without modifying text or the clipboard.
+- Escape restores the original typing context without modifying existing text or the clipboard; after a typed `::` invocation, the source holds exactly what the user typed.
 - Enter inserts the exact selected Unicode string, including complete emoji sequences, into the intended input field.
 - A stale or uncertain target produces a clear copy-only outcome instead of inserting somewhere else.
 - The default interface remains useful without choosing a font, Unicode block, output format, or category.
@@ -78,7 +78,7 @@ Escape, clicking outside the panel, or pressing the shortcut again cancels the p
 3. The two colons enter the source normally. After confirming committed text in the original field, Charms opens the same search-focused picker beside them.
 4. The user can continue typing without an intentional pause. For `::arrow`, any query prefix that reaches the source during focus transfer is tracked and becomes the beginning of the picker query; later query characters go directly into the picker.
 5. On Enter, Charms validates the original field and exact tracked range, returns keyboard focus, and replaces the marker plus any verified source-side query prefix with the chosen string once.
-6. On Escape, the source is unchanged: the literal `::` and any prefix typed there before the picker took focus remain. Query text entered inside the picker is not written back to the source.
+6. On Escape, the source ends up holding exactly what the user typed, however the query was split between source and picker. Nothing already in the source is removed, and the query text the picker received is written back once, at the tracked caret, through the session's validated transport. If the handoff has not settled or the field no longer validates, nothing is written. This matches inline shortcode pickers, where Escape leaves the typed `:query` in place.
 
 The shortcut path inserts at the existing selection. The typed-trigger path replaces a tracked activation range. Keep those operations distinct even though they share the same picker. Seamless fast typing must be proved in the native spike; a listen-only observer alone does not guarantee it.
 
@@ -360,7 +360,7 @@ On commit:
 4. Dispatch the chosen output once using the already selected insertion transport.
 5. If selection preparation fails before dispatch, preserve the activation text and offer Copy. If preparation changed the selection but dispatch cannot start, restore the previous caret only if the source remains unchanged and current.
 
-Escape and explicit Copy leave source activation text intact. Choosing a symbol replaces it; one normal Undo should restore that text in supported apps. After an uncertain dispatch, do not remove more text or retry another transport. In fields without sufficient AX range access, disable typed invocation and retain shortcut/browse/copy use.
+Escape and explicit Copy leave source activation text intact; Escape also returns picker-side query text as described in section 3. Choosing a symbol replaces it; one normal Undo should restore that text in supported apps. After an uncertain dispatch, do not remove more text or retry another transport. In fields without sufficient AX range access, disable typed invocation and retain shortcut/browse/copy use.
 
 ## 8. Catalogue, Unicode, and search
 
@@ -507,7 +507,7 @@ Focus automated tests on decisions with meaningful independent expected outcomes
 - Session state: duplicate Enter, cancellation during capture/validation, late AX/search callbacks, app exit, changed target, and overlapping invocations.
 - Focus handoff and modifiers: dispatch cannot occur while the picker is the receiver, while physical modifiers remain held, or after the source field changes.
 - Typed-trigger state: committed two-colon recognition, allowed boundaries, timeouts, resets, exclusions, auto-repeat, observer shutdown, synthetic-event filtering, and no reentrancy from the picker.
-- Activation replacement: correct UTF-16 ranges after emoji, fast source/panel query splits in every position, source edits before commit, failed selection preparation, Escape/Copy preserving source activation text, and no blind deletion or duplicate transport.
+- Activation replacement: correct UTF-16 ranges after emoji, fast source/panel query splits in every position, source edits before commit, failed selection preparation, Escape writing picker-side query text back exactly once, Copy preserving source activation text, and no blind deletion or duplicate transport.
 - Transport selection: choose a method before dispatch; no implicit second transport after an unconfirmed first dispatch.
 - Clipboard coordination: newer user copy is never overwritten; failed snapshot does not destroy contents; later sessions cannot restore older data.
 - Unicode round trips: BMP symbols, supplementary scalars, variation selectors, skin tones, ZWJ sequences, flags, keycaps, and combining marks.
@@ -536,7 +536,8 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P0 | User copies another item during a paste transaction | New clipboard contents are retained; old contents are not restored over them. |
 | P0 | Slow/hung source app or late AX response | Charms stays responsive and late work cannot affect another session. |
 | P0 | Type `::arrow` continuously at normal/high speed in an eligible field | Query is exactly `arrow`, regardless of the source/panel split; Enter replaces the tracked activation text with one arrow and leaves no trigger/query prefix behind. |
-| P0 | Escape or Copy after typed invocation, including a slow focus handoff | The literal `::` and any source-side prefix remain exactly as typed; source text is not deleted or overwritten. |
+| P0 | Escape after typed invocation, including a slow focus handoff | The source holds exactly `::` plus the whole typed query, whatever the split; no text is deleted or overwritten, and nothing is written if the handoff never settled or the field no longer validates. |
+| P0 | Copy after typed invocation | The literal `::` and any source-side prefix remain exactly as typed; source text is not deleted or overwritten. |
 | P0 | Marker edited/deleted, caret moved, or field replaced before commit | No blind Backspaces or insertion; stale typed session cancels or offers Copy. |
 | P0 | Type `::` and switch apps during asynchronous capture/handoff | No late popup or insertion appears in the new app; returning does not revive the old session. |
 | P0 | Press the shortcut during a first-colon or `::` candidate | One shortcut session opens, pending trigger work is invalidated, and literal source text remains intact. |
