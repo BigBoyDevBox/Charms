@@ -31,7 +31,7 @@ The repository currently contains the project license and no application impleme
 | Hardware | Design for Apple Silicon and Intel; publish a universal build only after both architectures have build coverage and real-machine validation. |
 | Language and UI | Swift, AppKit for application/window integration, SwiftUI for the picker and settings where it behaves reliably. |
 | Application style | Menu-bar accessory app, with no persistent Dock icon or ordinary document window. |
-| Shortcut | Offer the user's preferred Control-P (`⌃P`), configurable and subject to successful registration. |
+| Shortcut | Offer the user's preferred Control-P (`⌃P`), configurable and subject to successful registration. Settings and the recorder should note that a global `⌃P` shadows the standard text-view move-up binding in every app while Charms runs. |
 | Typed trigger | Optional `::` recognition, enabled explicitly with any required Input Monitoring access; the shortcut remains available independently. |
 | Distribution | Direct distribution, initially through GitHub releases; signed and notarized for public builds. |
 | Runtime dependencies | Prefer Apple frameworks and a bundled local catalogue; introduce external packages only for a concrete unmet need. |
@@ -67,7 +67,7 @@ The repository currently contains the project license and no application impleme
 6. The user types a query such as `arrow`, `check`, `infinity`, `cmd`, `happy`, `->`, or `U+2192`.
 7. Arrow keys select a result. The footer shows its understandable name and code point or sequence.
 8. Enter closes the picker and dispatches one insertion to the revalidated original target.
-9. Typing continues in that field. The selected item is moved to the front of recents.
+9. Typing continues in that field. The selected item is moved to the front of recents after insertion or an explicit copy.
 
 Escape, clicking outside the panel, or pressing the shortcut again cancels the picker. Cancellation does not modify the document, recents, or clipboard.
 
@@ -127,6 +127,7 @@ The diagram is structural; native font metrics determine final spacing.
 | Typing while navigating results | Return to the search field and edit the query using ordinary text input. |
 | Enter | Insert the selected item exactly once. |
 | Command-Enter | Copy the selected Unicode string, close the picker, and return focus without automatic insertion. |
+| Command-C while the grid is focused | The same copy action as Command-Enter; while the search field has focus, Command-C keeps its ordinary selected-text meaning. |
 | Escape | Cancel and restore focus. |
 | Command-D | Toggle the selected item's favourite state. |
 | Tab / Shift-Tab | Follow a predictable native focus order; never trap the user in the grid. |
@@ -229,7 +230,7 @@ Try the focused element's selected range and the bounds-for-range AX parameter. 
 
 For a non-empty selection, anchor near a reliable end-of-selection caret rectangle when available; otherwise use the selection or field bounds. Do not turn an unsupported range query into a request for the entire document.
 
-Bound AX messaging time and the total capture deadline. If a request is slow, present using already captured reliable window/display geometry, then ignore replies after cancellation or session replacement. A hung external application must not freeze the picker.
+Bound AX messaging time per call with `AXUIElementSetMessagingTimeout` (the system default is several seconds, long enough to stall the picker) and bound the total capture deadline, initially near 100 ms so the §13 warm-present budget stays reachable; tune from measurements. If a request is slow, present using already captured reliable window/display geometry, then ignore replies after cancellation or session replacement. A hung external application must not freeze the picker.
 
 ### 6.2 Placement priority
 
@@ -266,12 +267,13 @@ Represent lifecycle explicitly:
 
 ```text
 idle -> capturing -> browsing -> validating -> dispatching -> idle
-                         |           |
-                         +-> cancel -+
+                         |           |               |
+                         +-> cancel -+               +-> failedBeforeDispatch -> idle
                          +-> copy -> idle
 ```
 
 - Only one session and one insertion dispatch can be active.
+- Every session ends in exactly one outcome — `cancelled`, `copied`, `dispatched`, or `failedBeforeDispatch` — and returns to `idle`; `failedBeforeDispatch` means validation, selection preparation, or event posting failed and nothing was sent, and `dispatched` never claims a verified insertion.
 - A shortcut invocation supersedes pending `::` recognition, clears its candidate state, and preserves text already typed in the source. It starts a fresh shortcut session rather than inheriting a marker-removal range. An already visible picker still follows the normal shortcut-to-cancel rule.
 - Repeated Enter/click events cannot dispatch twice.
 - Cancelling invalidates pending AX requests, search results, scheduled paste actions, and focus restoration callbacks.
@@ -314,7 +316,7 @@ For the optional paste backend:
 - Capture restorable clipboard representations in memory immediately before taking ownership. Preserve multiple items/types where safely supported, rather than saving only a string.
 - If contents cannot be safely snapshotted/restored, do not promise preservation; use an explicit copy/paste choice instead of silently discarding data.
 - Write only the selected plain-text Unicode string and remember the resulting pasteboard `changeCount`.
-- Restore previous contents only while the pasteboard still has the exact ownership/change count established by that transaction. Never overwrite a subsequent user copy.
+- Restore previous contents only while the pasteboard `changeCount` still equals the value recorded immediately after this transaction's write, and only once per transaction; any later count means a newer copy exists. Never overwrite a subsequent user copy.
 - A fixed delay is not a universal paste-completion acknowledgement. Establish app-specific supported behaviour in the spike; if consumption cannot be established reliably, leave this backend explicit and describe restoration as best effort.
 - Do not chain a new clipboard transaction while restoration is unresolved. Never restore an old snapshot after relaunch or a later session.
 - Do not write clipboard snapshots to disk or logs.
@@ -413,7 +415,7 @@ Retain required Unicode/CLDR and any package notices in `THIRD_PARTY_NOTICES.md`
 
 ## 9. Local persistence and privacy
 
-- Store simple preferences in `UserDefaults`, including shortcut, typed-trigger opt-in/exclusions/pause state, preferred skin tone, and launch-at-login preference.
+- Store simple preferences in `UserDefaults`, including shortcut, typed-trigger opt-in/exclusions, preferred skin tone, launch-at-login preference, and a persisted pause state: pause is an explicit choice that survives relaunch and is shown in settings and the menu, so observation is never resumed silently.
 - Store favourites, their order, and recents in a schema-versioned Codable file under the app's Application Support directory.
 - Write atomically and serialize updates. Preserve a recoverable previous file when migrating; do not silently erase user choices on decode failure.
 - Migrate entries using stable IDs and exact sequences so catalogue updates do not lose favourites. Preserve unresolved favourites for future recovery rather than deleting them automatically.
