@@ -401,7 +401,7 @@ Start with a lightweight in-memory index rather than a database or external sear
 
 Favourites and usage can break ties within a relevance tier; they must not push an unrelated frequent item above an exact query. Keep deterministic ordering for ties. Preserve punctuation aliases such as `->` and `!=` during tokenization.
 
-Support case-insensitive and accent-insensitive search keys, multiple query words, literal pasted symbols, and `U+2192`/`2192` notation. Bare hex notation collides with ordinary numbers and with hex-letter words such as `dead` and `fade`, and familiar aliases such as `100` and `1234` name real emoji: treat a query as a bare code point only when it is exactly four to six hex digits and has no exact alias or display-name match, so `2764` and `1F44D` still find ❤ and 👍 while `100` keeps 💯; a `U+`-prefixed query always parses as code points and keeps its tier-one rank. Multi-code-point lookup must parse an entire sequence instead of accepting only its first scalar. Reject invalid scalars gracefully.
+Support case-insensitive and accent-insensitive search keys, multiple query words, literal pasted symbols, and `U+2192`/`2192` notation. Many numbers and hex-letter words are valid code points — `face` is U+FACE (a CJK compatibility ideograph), `cafe` a Hangul syllable, and `100` LATIN CAPITAL LETTER A WITH MACRON — so treat a bare hexadecimal query such as `2192` as an additional interpretation ranked below exact name and alias matches, never in tier one; `2764` and `1F44D` still find ❤ and 👍 when no name or alias matches. A `U+`-prefixed query always parses as code points and keeps its tier-one rank. Multi-code-point lookup must parse an entire sequence instead of accepting only its first scalar. Reject invalid scalars gracefully.
 
 Cancel superseded searches and apply results only to the matching query/session generation. Do not replace the selection under the user's Enter key with a late result from an older query.
 
@@ -511,7 +511,7 @@ Focus automated tests on decisions with meaningful independent expected outcomes
 - Transport selection: choose a method before dispatch; no implicit second transport after an unconfirmed first dispatch.
 - Clipboard coordination: newer user copy is never overwritten; failed snapshot does not destroy contents; later sessions cannot restore older data.
 - Unicode round trips: BMP symbols, supplementary scalars, variation selectors, skin tones, ZWJ sequences, flags, keycaps, and combining marks.
-- Search: a fixed corpus with independently chosen expected results, alias punctuation, code-point parsing including numeric and hex-word alias collisions (`100`, `1234`, `fade`), stable ranking, and cancellation of old queries.
+- Search: a fixed corpus with independently chosen expected results, alias punctuation, code-point parsing including numeric and hex-word alias collisions (`face`, `cafe`, `100`), stable ranking, and cancellation of old queries.
 - Persistence: first-run seeding, intentionally empty favourites, ordering, migration, unknown IDs, interrupted writes, and corrupt-file recovery.
 
 Use a small native test harness for known AX fields and editing behaviour. UI tests should verify a few critical flows, not mirror every view implementation. Hosted CI can build and test pure logic; it cannot prove real multiple-display or TCC permission behaviour.
