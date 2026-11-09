@@ -606,7 +606,7 @@ Do not expand the main interface to solve rare compatibility problems. Keep spec
 
 ## 16. First implementation slice
 
-The first pull request or implementation commit should contain only the project scaffold and the M1 native spike foundations: a menu-bar app, configurable shortcut, target snapshot, fixed-fixture picker, correct-screen placement, cancellation, and one insertion transport. Include the small pure tests and a recorded two-display manual check. Follow immediately with the small opt-in `::` feasibility spike, then build the shared catalogue/UI; both invocation methods belong in the first usable release.
+The first pull request should contain only the M0 scaffold: app target, shared scheme, unit tests, and a native text-input harness. Follow it with separate M1 spike PRs for shortcut/target capture, placement, cancellation/session control, and insertion transport, each with pure tests and a manual check. Then run the opt-in `::` feasibility spike and build the shared catalogue/UI; both invocation methods belong in the first usable release.
 
 Catalogue generation and a refined grid can proceed independently once their interfaces are defined, but the focus/placement/insertion state machine remains the critical path. Delegate bounded data, fixture, documentation, and visual tasks only after their expected outputs can be checked independently.
 
