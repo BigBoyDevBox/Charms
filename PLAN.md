@@ -584,7 +584,7 @@ Preload or lazily prepare the immutable catalogue without delaying first keyboar
 - Build without signing for ordinary CI checks where appropriate, and use a separate explicit signed release job.
 - Add CI for a macOS build, meaningful unit tests, deterministic data validation, and release-artifact checks. Use currently available supported runner/toolchain versions when implementing it, rather than freezing guessed service versions in this plan.
 - A signing identity/Apple Developer account is a release prerequisite, not a reason to block unsigned local prototyping.
-- Document uninstalling/disabling launch at login, privacy behaviour, current compatibility, and how to recover insertion permission.
+- Document uninstalling/disabling launch at login, privacy behaviour, current compatibility, how to recover insertion permission, and how to revert to the previous release (GitHub release assets and checksums).
 - Add automatic updates only after signing and release reproducibility work; assess a maintained updater separately if needed.
 
 ## 15. Decisions to record during implementation
