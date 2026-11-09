@@ -145,7 +145,7 @@ Confirm these search-field/result navigation rules with a small native interacti
 
 ### 4.4 Menu bar, settings, and onboarding
 
-The menu-bar item must offer Open Charms, Settings, About, and Quit. Opening through the menu bar uses the same target-capture rules as the shortcut. If no trustworthy external target is available, open in browse/copy mode.
+The menu-bar item must offer Open Charms, Settings, About, and Quit. Opening through the menu bar uses the same target-capture rules as the shortcut. If no trustworthy external target is available, open in browse/copy mode. Charms' own windows (Settings, onboarding, the picker) are never insertion targets: when the key window belongs to Charms, invocation opens browse/copy mode instead of capturing Charms' own UI.
 
 Keep settings to:
 
@@ -284,7 +284,7 @@ Check permission, process identity/liveness, original window/element validity, a
 
 Treat secure/password fields and active secure-input conditions conservatively. Do not inspect their text or synthesize insertion into them. If an element cannot be classified or revalidated sufficiently, offer Copy and ask the user to place the caret and invoke Charms again.
 
-If the user switches to a different field/window while the picker is open, cancel or require reinvocation. Never silently retarget. A terminated app, recycled process identifier, replaced web element, or closed document must invalidate the snapshot.
+If the user switches to a different field/window while the picker is open, cancel or require reinvocation. Never silently retarget. A session whose captured process is Charms itself is invalid: Charms' own windows (Settings, onboarding, the picker) are never insertion targets. A terminated app, recycled process identifier, replaced web element, or closed document must invalidate the snapshot.
 
 ### 7.3 Choose a transport before sending text
 
@@ -549,6 +549,7 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P1 | Shortcut collision, changed layout, or PopChar still owning `⌃P` | Conflict is recoverable; recorder labels remain accurate and another shortcut can be chosen. |
 | P1 | Keyboard-only use and VoiceOver | Search, selection, favourites, variants, insertion, Copy, and dismissal are reachable and named. |
 | P1 | Relaunch, sleep/wake, denied login item, and corrupt preferences | Settings recover predictably; Charms remains launchable and quit-able. |
+| P1 | Invoked while a Charms-owned window (Settings, onboarding) is key | Opens browse/copy mode; Charms' own UI is never an insertion target. |
 
 ### 12.3 Real application coverage
 
