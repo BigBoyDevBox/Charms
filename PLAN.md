@@ -10,6 +10,16 @@ Charms is a small native macOS utility for inserting arrows, unusual symbols, pu
 
 The product name is **Charms**. The selected interface direction is the **first, compact grid design** from the initial concept: a search field, generous character cells, favourites, recents, and a quiet detail/footer area. The alternative named-results list is not the default design.
 
+### Alternatives considered
+
+- **macOS Character Viewer** (built in): complete Unicode coverage and nothing to install, but it opens as a detached palette away from the caret, keeps no favourites or recents, and cannot insert into the focused field. Charms differentiates on caret-adjacent placement and a query-first grid.
+- **PopChar** (commercial): the mature reference for this job, with broad coverage and dependable insertion. Charms differentiates on focus-aware placement, favourites/recents, and a smaller surface; PopChar is also the likely owner of `⌃P`, which is why shortcut conflict recovery is a P1 acceptance case in §12.2.
+- **Rocket and TextExpander-style typed expansion**: fast because the trigger is typed, but they expand abbreviations into text rather than letting the user search and choose a character, and their trigger languages are broader than the optional `::` marker planned here.
+- **Named-results list** (the alternative in the initial concept): rejected as the default because scanning a vertical list of names is slower than scanning the characters themselves; the grid keeps the name in the footer instead.
+- **Copy from a browser emoji picker**: no install and full coverage, but it needs the mouse and spends the clipboard. The shortcut path's promise of leaving the clipboard untouched is what makes Charms competitive with this habit.
+
+These are positioning notes, not compatibility claims. Measured behaviour against real applications is recorded separately in §12.3 and `docs/compatibility.md`.
+
 The repository currently contains the project license and no application implementation. This document specifies intended behaviour and engineering decisions; it does not claim that cross-app compatibility has already been demonstrated.
 
 ### Success criteria
