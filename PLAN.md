@@ -30,7 +30,7 @@ The repository currently contains the project license and no application impleme
 | Platform | macOS 14 or later; confirm this deployment target during the native spike. |
 | Hardware | Design for Apple Silicon and Intel; publish a universal build only after both architectures have build coverage and real-machine validation. |
 | Language and UI | Swift, AppKit for application/window integration, SwiftUI for the picker and settings where it behaves reliably. |
-| Application style | Menu-bar accessory app, with no persistent Dock icon or ordinary document window. |
+| Application style | Menu-bar accessory app (`Info.plist` `LSUIElement`), with no persistent Dock icon or ordinary document window. Keep the activation policy accessory for the menu-bar/picker surface and specify how Settings/About are presented without becoming a regular Dock app. |
 | Shortcut | Offer the user's preferred Control-P (`⌃P`), configurable and subject to successful registration. |
 | Typed trigger | Optional `::` recognition, enabled explicitly with any required Input Monitoring access; the shortcut remains available independently. |
 | Distribution | Direct distribution, initially through GitHub releases; signed and notarized for public builds. |
@@ -156,7 +156,7 @@ Keep settings to:
 - Clear recents and reset favourites as separate explicit actions.
 - A compact Compatibility section for an app's insertion method, only if the native spike proves that per-app overrides are necessary.
 
-On first launch, explain Accessibility access in plain language: Charms uses it to locate the typing field and return characters there. Offer **Enable Insertion** and **Browse and Copy**. Prompt for trust only in response to the enable action; browsing remains useful without access. Recheck permission when returning from System Settings and explain how to recover if it is revoked.
+On first launch, explain Accessibility access in plain language: Charms uses it to locate the typing field and return characters there. Offer **Enable Insertion** and **Browse and Copy**. Prompt for trust only in response to the enable action; browsing remains useful without access. Recheck permission when the app becomes active again (observe `NSApplication.didBecomeActiveNotification`) so returning from System Settings refreshes state without polling, and explain how to recover if it is revoked.
 
 Enabling `::` is a separate, opt-in step. Explain that recognizing it requires observing keyboard events and briefly tracking the explicit trigger/query transition, request Input Monitoring through the applicable public API if needed, and leave the keyboard-shortcut path usable when this permission is denied. Disabling the option removes the event observer and clears its transient state.
 
@@ -254,9 +254,11 @@ Select the screen from captured geometry rather than consulting the picker's own
 
 Prototype an `NSPanel` constructed with the nonactivating-panel style, able to become key for search without becoming an ordinary main application window. Capture the origin before ordering it on screen. Use standard window levels.
 
-Prove the combination of full-screen auxiliary behaviour and one explicit Spaces strategy on supported macOS versions. Do not combine mutually exclusive collection behaviours or rely on a newly introduced option without availability checks. Opening Charms must not move the user to a different Space.
+Prove the intended collection-behaviour combination — at minimum `.canJoinAllSpaces` together with `.fullScreenAuxiliary`, plus `.stationary` and/or `.transient` as needed — on supported macOS versions. Do not combine mutually exclusive behaviours (for example `.fullScreenPrimary` with `.fullScreenAuxiliary`) or rely on a newly introduced option without availability checks. Set `hidesOnDeactivate` so the panel does not disappear on an expected focus handoff. Opening Charms must not move the user to a different Space.
 
 Cancel when the user genuinely changes the originating app/window, the panel loses keyboard focus to an outside click, the target exits, or the session becomes invalid. Distinguish expected panel-focus transitions from genuine user target changes so opening the picker does not immediately cancel itself.
+
+On dismissal, restore keyboard focus with an explicit mechanism rather than relying on the panel resigning key: activate the captured source application (`NSRunningApplication(processIdentifier:)` + `activate(options:)`, or an AX raise on the captured window) and reapply the focused element/selected range where the source supports it. Do this only when the source process, window, and field are still current, and never activate an app the user deliberately left.
 
 ## 7. Insertion and session correctness
 
@@ -440,6 +442,7 @@ Implement in small reviewable commits. The native risk spike is a gate for the b
 ### M0 — Bootstrap the project
 
 - [ ] Create the app target, shared scheme, unit tests, and a tiny native text-input harness.
+- [ ] Set `Info.plist` `LSUIElement` and verify the accessory activation policy, including how Settings/About are presented and how the app returns to accessory state.
 - [ ] Select and document the deployment target, toolchain, stable bundle identifier, and development signing approach.
 - [ ] Add README build/run instructions and a focused `.gitignore`; do not commit local IDE state or signing secrets.
 - [ ] Create a menu-bar accessory app with Settings and Quit.
