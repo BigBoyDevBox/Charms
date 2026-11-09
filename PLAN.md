@@ -453,11 +453,16 @@ Implement in small reviewable commits. The native risk spike is a gate for the b
 - [ ] Implement geometry conversion and the complete display fallback chain.
 - [ ] Implement cancellation, target validation, and one-dispatch session control.
 - [ ] Compare Unicode events and explicit plain-text paste with selection replacement and Undo.
-- [ ] Spike committed `::` detection, uninterrupted fast `::arrow` handoff, exact activation-range selection/replacement, Escape preservation, layout/IME limits, and the additional permission path before promising universal typed-trigger support.
 - [ ] Test two displays, the mouse on the other screen, negative/vertical display layouts, mixed scale factors, and full-screen/Spaces behaviour.
 - [ ] Record actual app/OS/version/backend results in `docs/compatibility.md` and capture decisions in a short technical note.
 
 **Exit:** the core flow works in a native text view and ordinary browser field on both displays. Known incompatible contexts have a predictable Copy path. No unexplained wrong-target insertion or duplicate dispatch remains. If these behaviours cannot be achieved, narrow the supported matrix explicitly before proceeding.
+
+### M1b — Prove the typed `::` trigger (separate gate)
+
+- [ ] Spike committed `::` detection, uninterrupted fast `::arrow` handoff, exact activation-range selection/replacement, Escape preservation, layout/IME limits, and the additional permission path before promising universal typed-trigger support.
+
+**Exit:** a recorded feasibility verdict for uninterrupted `::` typing (§7.6). This gate is deliberately separate from M1 so its verdict cannot block the shortcut-path exit criteria. If reliable reconciliation is not achievable with the selected public APIs, revise the trigger design explicitly and narrow the v1 scope before M4 builds on it; do not carry an unproven assumption into the first usable release.
 
 ### M2 — Build the offline catalogue and search
 
@@ -596,7 +601,7 @@ The defaults above allow work to begin. Record evidence and adjust them at the r
 | Minimum macOS version and Intel release support | Actual build/toolchain compatibility and available test machines. | M0/M1 |
 | Nonactivating-panel/Spaces configuration | Real fullscreen, Stage Manager, separate-Spaces, and keyboard-focus behaviour. | M1 |
 | Default insertion transport and per-app exceptions | Exact-string, selection, Undo, focus, and clipboard tests. | M1 |
-| Typed-marker observer, permissions, and supported contexts | Committed-text proof, fast-typing handoff/order, bounded range replacement, IME/layout tests, and exclusion behaviour. | M1/M4 |
+| Typed-marker observer, permissions, and supported contexts | Committed-text proof, fast-typing handoff/order, bounded range replacement, IME/layout tests, and exclusion behaviour. | M1b/M4 |
 | Pasteboard restoration policy for supported apps | Demonstrated consumption/ownership behaviour and race tests. | M1/M4 |
 | Unicode/CLDR baseline and missing-glyph policy | Rendering on the minimum OS plus catalogue/search fixtures. | M2 |
 | Final cell size and keyboard navigation details | First-design review, increased text size, VoiceOver, and IME tests. | M3 |
@@ -606,7 +611,7 @@ Do not expand the main interface to solve rare compatibility problems. Keep spec
 
 ## 16. First implementation slice
 
-The first pull request or implementation commit should contain only the project scaffold and the M1 native spike foundations: a menu-bar app, configurable shortcut, target snapshot, fixed-fixture picker, correct-screen placement, cancellation, and one insertion transport. Include the small pure tests and a recorded two-display manual check. Follow immediately with the small opt-in `::` feasibility spike, then build the shared catalogue/UI; both invocation methods belong in the first usable release.
+The first pull request or implementation commit should contain only the project scaffold and the M1 native spike foundations: a menu-bar app, configurable shortcut, target snapshot, fixed-fixture picker, correct-screen placement, cancellation, and one insertion transport. Include the small pure tests and a recorded two-display manual check. Follow immediately with the M1b opt-in `::` feasibility spike — a separate gate per §11, so the shortcut path is not blocked on its verdict — then build the shared catalogue/UI; both invocation methods belong in the first usable release.
 
 Catalogue generation and a refined grid can proceed independently once their interfaces are defined, but the focus/placement/insertion state machine remains the critical path. Delegate bounded data, fixture, documentation, and visual tasks only after their expected outputs can be checked independently.
 
