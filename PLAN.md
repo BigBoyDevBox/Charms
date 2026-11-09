@@ -223,7 +223,7 @@ On each invocation, create a new session containing:
 - Session identifier, permission state, and whether automatic insertion is allowed.
 - Invocation source: shortcut, menu bar, or typed marker. A typed session additionally holds the activation range, bounded source-side query prefix, and expected caret position after them.
 
-Keep this snapshot in memory only and discard it after the session ends. Shortcut/menu-bar invocation does not read selected text or document contents. Typed invocation may read only the marker, a bounded source-side query prefix during focus transfer, and a small boundary context. Neither path captures the window title or clipboard as part of ordinary invocation.
+Keep this snapshot in memory only and discard it after the session ends. Shortcut/menu-bar invocation does not read selected text or document contents. Typed invocation may read only the marker, a bounded source-side query prefix during focus transfer, and a small boundary context. Neither path captures the window title or clipboard as part of ordinary invocation. Charms' own windows are never capture targets: when an invocation finds focus inside the settings window or another Charms surface, treat the session as having no trustworthy external target and open in browse/copy mode.
 
 Try the focused element's selected range and the bounds-for-range AX parameter. A collapsed selection is normally the caret. Some apps return no useful bounds, and that is an expected compatibility condition.
 
@@ -282,13 +282,13 @@ idle -> capturing -> browsing -> validating -> dispatching -> idle
 
 Check permission, process identity/liveness, original window/element validity, and the source's current focus. Where supported, verify the selection range has not changed since capture. The picker being key is an expected exception, not permission to target any newly frontmost app.
 
-Treat secure/password fields and active secure-input conditions conservatively. Do not inspect their text or synthesize insertion into them. If an element cannot be classified or revalidated sufficiently, offer Copy and ask the user to place the caret and invoke Charms again.
+Treat secure/password fields and active secure-input conditions conservatively. Do not inspect their text or synthesize insertion into them; open in browse/copy mode for such a target instead of presenting a picker that can only fail. If an element cannot be classified or revalidated sufficiently, offer Copy and ask the user to place the caret and invoke Charms again.
 
 If the user switches to a different field/window while the picker is open, cancel or require reinvocation. Never silently retarget. A terminated app, recycled process identifier, replaced web element, or closed document must invalidate the snapshot.
 
 ### 7.3 Choose a transport before sending text
 
-After freezing the selected output, wait for invocation/selection modifiers to be physically released within a bounded interval. Do not synthesize key-up events for keys the user is still holding. If modifiers remain held, keep a recoverable pending state or cancel; do not send altered text.
+After freezing the selected output, wait for invocation/selection modifiers to be physically released within a bounded interval, initially about one second and tuned from measurements. Do not synthesize key-up events for keys the user is still holding. If modifiers remain held, keep a recoverable pending state or cancel; do not send altered text.
 
 Then dismiss/resign the panel, establish that the original app and exact target field are again the effective receiver, and revalidate immediately before dispatch. Prefer PID-addressed Quartz events where supported and tested. PID targeting alone does not prove that the correct field/window is focused; abort if that validation fails. Do not silently fall back to the global event stream.
 
@@ -531,7 +531,8 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P0 | Double Enter, Enter plus click, or held shortcut | At most one insertion or toggle transition occurs. |
 | P0 | User changes app/window/field while picker is open | Session cancels or becomes copy-only; text is never sent to the new target. |
 | P0 | Source quits, document closes, or AX element becomes stale | No insertion and no forced reactivation of an unrelated app. |
-| P0 | Password/secure field or secure-input condition | Automatic insertion is unavailable; no source text is read. |
+| P0 | Password/secure field or secure-input condition | Automatic insertion is unavailable and the picker opens in browse/copy mode; no source text is read. |
+| P0 | Invocation with no trustworthy external target: menu bar with no focused field, or focus inside Charms' own UI | The picker opens in browse/copy mode; no insertion is attempted and Copy works. |
 | P0 | Accessibility missing or revoked | Browse/Copy remains usable and enabling insertion has a clear recovery path. |
 | P0 | User copies another item during a paste transaction | New clipboard contents are retained; old contents are not restored over them. |
 | P0 | Slow/hung source app or late AX response | Charms stays responsive and late work cannot affect another session. |
