@@ -492,7 +492,7 @@ Implement in small reviewable commits. The native risk spike is a gate for the b
 - [ ] Complete the real-app/display compatibility matrix and review unresolved limitations.
 - [ ] Measure performance using release builds and record the hardware/OS used.
 - [ ] Produce a signed/notarized app and distribution archive, using an appropriate Developer ID identity supplied through local/CI signing configuration.
-- [ ] Verify a downloaded build on a clean user account, including launch, trust onboarding, login item, and quitting.
+- [ ] Verify a downloaded build on a clean user account, including launch, trust onboarding, login item, and quitting, from a non-translocated install in /Applications.
 - [ ] Publish build instructions, compatibility notes, release notes, and checksums with the release.
 
 **Exit:** a fresh user can install, grant only needed access, invoke Charms, insert symbols/emoji in documented contexts, and remove or quit it normally.
@@ -584,7 +584,7 @@ Preload or lazily prepare the immutable catalogue without delaying first keyboar
 - Build without signing for ordinary CI checks where appropriate, and use a separate explicit signed release job.
 - Add CI for a macOS build, meaningful unit tests, deterministic data validation, and release-artifact checks. Use currently available supported runner/toolchain versions when implementing it, rather than freezing guessed service versions in this plan.
 - A signing identity/Apple Developer account is a release prerequisite, not a reason to block unsigned local prototyping.
-- Document uninstalling/disabling launch at login, privacy behaviour, current compatibility, and how to recover insertion permission.
+- Document installing the app in /Applications before enabling launch at login — the system may otherwise run a newly downloaded app from a randomized, read-only path (app translocation) — and document uninstalling/disabling launch at login, privacy behaviour, current compatibility, and how to recover insertion permission.
 - Add automatic updates only after signing and release reproducibility work; assess a maintained updater separately if needed.
 
 ## 15. Decisions to record during implementation
