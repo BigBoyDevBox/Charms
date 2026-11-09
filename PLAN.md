@@ -111,7 +111,7 @@ The diagram is structural; native font metrics determine final spacing.
 - Use a native scroll view for longer results, keep the selected cell visible, and avoid resizing the panel on every keystroke.
 - Start with the first matching item selected. Clearing search restores the initial favourites/recents state.
 - Distinguish selection from hover. A stationary mouse must not steal selection after a keyboard search or rerender.
-- Use system appearance, readable contrast, restrained borders, and native focus indicators. Honour Reduce Motion and Increase Contrast.
+- Use system appearance, readable contrast, restrained borders, and native focus indicators. Honour Reduce Motion and Increase Contrast. Configure the panel with `isOpaque = false`, `backgroundColor = .clear`, and backing content in an `NSVisualEffectView` with `.popover` material and `.behindWindow` blending. Invalidate the panel shadow (`invalidateShadow()`) whenever content reflow or geometry changes its dimensions.
 - Do not introduce permanent sidebars, font selectors, code-format controls, or category toolbars into this surface.
 - An empty result state says that nothing matched and allows immediate query editing. Enter does nothing when no result is selected.
 
@@ -431,7 +431,7 @@ Retain required Unicode/CLDR and any package notices in `THIRD_PARTY_NOTICES.md`
 - Keep favourite/variant actions available to keyboard users; do not hide essential actions behind hover alone.
 - Honour system text size, contrast, reduced motion, dark/light appearance, and keyboard focus settings.
 - Test marked-text composition and non-U.S. keyboard layouts. Record/display shortcuts according to the current layout while retaining stable registration semantics.
-- Verify focus restoration with VoiceOver as well as visually; a dismissed panel must not leave assistive focus stranded.
+- Verify focus restoration with VoiceOver as well as visually; a dismissed panel must not leave assistive focus stranded. Because the picker is presented in a nonactivating panel without full application activation, post `NSAccessibility.Notification.focusedUIElementChanged` targeting the search field when the panel opens so VoiceOver moves assistive focus to the search field immediately, and post it to the captured target element on dismissal.
 
 ## 11. Delivery milestones
 
@@ -547,7 +547,7 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P1 | IME marked text and candidate selection | Search composition works and candidate Return/Escape does not insert/cancel prematurely. |
 | P1 | `std::`, a pasted `::`, rapid repeats, U.S. and at least one non-U.S. colon layout, and another app's shortcode UI | Only confirmed eligible committed markers invoke Charms independent of physical key position; exclusions/boundaries prevent duplicate or unwanted handling. |
 | P1 | Shortcut collision, changed layout, or PopChar still owning `⌃P` | Conflict is recoverable; recorder labels remain accurate and another shortcut can be chosen. |
-| P1 | Keyboard-only use and VoiceOver | Search, selection, favourites, variants, insertion, Copy, and dismissal are reachable and named. |
+| P1 | Keyboard-only use and VoiceOver | Search, selection, favourites, variants, insertion, Copy, and dismissal are reachable and named; VoiceOver shifts focus into the search field on show and back to the target on dismissal. |
 | P1 | Relaunch, sleep/wake, denied login item, and corrupt preferences | Settings recover predictably; Charms remains launchable and quit-able. |
 
 ### 12.3 Real application coverage
@@ -620,6 +620,8 @@ These references establish available platform/data capabilities. The placement, 
 - [Apple: bounds-for-range AX parameter](https://developer.apple.com/documentation/applicationservices/kaxboundsforrangeparameterizedattribute).
 - [Apple: AX attribute queries and failure modes](https://developer.apple.com/documentation/applicationservices/1462085-axuielementcopyattributevalue).
 - [Apple: Accessibility trust](https://developer.apple.com/documentation/applicationservices/1459186-axisprocesstrustedwithoptions).
+- [Apple: NSAccessibility focusedUIElementChanged notification](https://developer.apple.com/documentation/appkit/nsaccessibility/notification/focuseduielementchanged).
+- [Apple: NSWindow invalidateShadow](https://developer.apple.com/documentation/appkit/nswindow/invalidateshadow%28%29).
 - [Apple: nonactivating panels](https://developer.apple.com/documentation/appkit/nswindow/stylemask-swift.struct/nonactivatingpanel).
 - [Apple: screen containing keyboard focus](https://developer.apple.com/documentation/appkit/nsscreen/main).
 - [Apple: window collection behaviour](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct).
