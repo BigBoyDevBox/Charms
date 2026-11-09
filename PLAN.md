@@ -28,7 +28,7 @@ The repository currently contains the project license and no application impleme
 | Area | Initial decision |
 | --- | --- |
 | Platform | macOS 14 or later; confirm this deployment target during the native spike. |
-| Hardware | Design for Apple Silicon and Intel; publish a universal build only after both architectures have build coverage and real-machine validation. |
+| Hardware | Design for Apple Silicon and Intel; publish a universal build only after both architectures have build coverage and real-machine validation. Apple has said macOS 26 Tahoe is the last release for Intel Macs, so Intel support would serve only macOS 14–26 and needs test hardware on those releases. |
 | Language and UI | Swift, AppKit for application/window integration, SwiftUI for the picker and settings where it behaves reliably. |
 | Application style | Menu-bar accessory app, with no persistent Dock icon or ordinary document window. |
 | Shortcut | Offer the user's preferred Control-P (`⌃P`), configurable and subject to successful registration. |
@@ -149,7 +149,7 @@ The menu-bar item must offer Open Charms, Settings, About, and Quit. Opening thr
 
 Keep settings to:
 
-- Keyboard shortcut.
+- Keyboard shortcut, and the short list of apps that keep it (section 5).
 - Enable typed `::` trigger, with an application exclusion list and a simple pause control.
 - Launch at login, off until the user opts in.
 - Preferred emoji skin tone.
@@ -194,7 +194,7 @@ THIRD_PARTY_NOTICES.md
 
 | Component | Responsibility |
 | --- | --- |
-| `HotKeyService` | Register one shortcut, handle conflicts and changes, and emit a debounced invocation. |
+| `HotKeyService` | Register one shortcut, handle conflicts and changes, and emit a debounced invocation. A registered global shortcut is taken from every app, and `⌃P` is the standard Cocoa text binding for moving to the previous line as well as the previous-history key in shells and Emacs. Unregister the shortcut while an app on a short, editable pass-through list, initially terminals and Emacs-style editors, is frontmost. |
 | `TypedTriggerService` | Observe only while enabled, recognize a committed `::` marker, enforce exclusions, and emit an invocation with a marker proof. |
 | `TargetCaptureService` | Capture the originating process, focused element/window, selection range, and geometry; typed-marker validation permits only narrowly bounded source-text reads. |
 | `PlacementEngine` | Pure placement decisions from captured rectangles, screen geometry, and panel size. |
@@ -549,6 +549,7 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P1 | Shortcut collision, changed layout, or PopChar still owning `⌃P` | Conflict is recoverable; recorder labels remain accurate and another shortcut can be chosen. |
 | P1 | Keyboard-only use and VoiceOver | Search, selection, favourites, variants, insertion, Copy, and dismissal are reachable and named. |
 | P1 | Relaunch, sleep/wake, denied login item, and corrupt preferences | Settings recover predictably; Charms remains launchable and quit-able. |
+| P1 | `⌃P` in Terminal, then in TextEdit, with the default pass-through list | Terminal receives `⌃P` (previous history); in TextEdit it opens Charms; switching apps re-registers the shortcut before the next keystroke. |
 
 ### 12.3 Real application coverage
 
@@ -578,7 +579,7 @@ Preload or lazily prepare the immutable catalogue without delaying first keyboar
 
 ## 14. Build, signing, and release operations
 
-- Keep the bundle identifier and development signing identity stable before testing Accessibility; permissions can be sensitive to application identity and build changes.
+- Keep the bundle identifier and development signing identity stable before testing Accessibility; permissions can be sensitive to application identity and build changes. Ad-hoc signed builds get a new code identity on every build and can lose Accessibility access, so sign development builds with an Apple Development identity. Enable the Hardened Runtime from M0: notarization requires it, and development builds should run under the same restrictions as release builds.
 - Document a predictable development installation/run path. Never automate granting TCC access or reset the user's permission database as a routine build step.
 - Keep certificates, credentials, notarization material, and provisioning data outside the repository; use local Keychain or CI secret storage.
 - Build without signing for ordinary CI checks where appropriate, and use a separate explicit signed release job.
