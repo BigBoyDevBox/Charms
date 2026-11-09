@@ -194,8 +194,8 @@ THIRD_PARTY_NOTICES.md
 
 | Component | Responsibility |
 | --- | --- |
-| `HotKeyService` | Register one shortcut, handle conflicts and changes, and emit a debounced invocation. |
-| `TypedTriggerService` | Observe only while enabled, recognize a committed `::` marker, enforce exclusions, and emit an invocation with a marker proof. |
+| `HotKeyService` | Register one shortcut, handle conflicts and changes, observe runtime keyboard layout switches (`NSTextInputContext.keyboardSelectionDidChangeNotification`) to refresh display labels, and emit a debounced invocation. |
+| `TypedTriggerService` | Observe only while enabled, recognize a committed `::` marker across dynamic layout changes, maintain dead-key state isolation during `UCKeyTranslate` calls so system input is not disrupted, enforce exclusions, and emit an invocation with a marker proof. |
 | `TargetCaptureService` | Capture the originating process, focused element/window, selection range, and geometry; typed-marker validation permits only narrowly bounded source-text reads. |
 | `PlacementEngine` | Pure placement decisions from captured rectangles, screen geometry, and panel size. |
 | `PickerController` | Own one panel and one invocation session; coordinate show, cancel, and selection. |
@@ -326,7 +326,7 @@ The release gate is predictable behaviour with a documented compatibility method
 Treat typed invocation as a separate input adapter, not a second picker or an unrestricted text expander.
 
 - Install a listen-only system keyboard observer/event tap only after the user enables the feature and the needed access is granted. Keep the callback fast; do not perform blocking AX calls inside it.
-- Recognize the produced colon characters using the active input context, not hard-coded U.S. key positions. Confirm actual committed `::` text and any exactly tracked transition prefix in the source before enabling insertion.
+- Recognize the produced colon characters using the active input context, not hard-coded U.S. key positions. Refresh cached key-layout data (`kTISPropertyUnicodeKeyLayoutData`) on `NSTextInputContext.keyboardSelectionDidChangeNotification`. In translation queries via `UCKeyTranslate`, use a dedicated zeroed dead-key state buffer so trigger recognition does not clear or mutate the user's active system dead-key state (such as pending diacritics). Confirm actual committed `::` text and any exactly tracked transition prefix in the source before enabling insertion.
 - The event notification may precede the source app updating its AX selection. Use a bounded asynchronous reconciliation step; if the marker cannot be confirmed, leave the source untouched and do not open automatically.
 - Before a trigger candidate, keep only minimal recognition state, such as a first-colon candidate, boundary state, source identity, and timestamp. After `::`, a bounded transient query-prefix buffer is allowed only for the handoff below. Do not buffer unrelated typing or log either form of state.
 - Reset on focus/caret changes, app switch, mouse navigation, nonmatching editing keys, timeout, sleep/lock, secure input, permission loss, or event-tap interruption. Ignore auto-repeat and Charms-generated events.
@@ -430,7 +430,7 @@ Retain required Unicode/CLDR and any package notices in `THIRD_PARTY_NOTICES.md`
 - Announce the selected result and settled search result state without speaking every hover or transient search update.
 - Keep favourite/variant actions available to keyboard users; do not hide essential actions behind hover alone.
 - Honour system text size, contrast, reduced motion, dark/light appearance, and keyboard focus settings.
-- Test marked-text composition and non-U.S. keyboard layouts. Record/display shortcuts according to the current layout while retaining stable registration semantics.
+- Test marked-text composition and non-U.S. keyboard layouts. Record/display shortcuts according to the current layout while retaining stable registration semantics, updating UI labels dynamically when input sources change (`kTISNotifySelectedKeyboardInputSourceChanged`).
 - Verify focus restoration with VoiceOver as well as visually; a dismissed panel must not leave assistive focus stranded.
 
 ## 11. Delivery milestones
@@ -506,6 +506,7 @@ Focus automated tests on decisions with meaningful independent expected outcomes
 - Placement geometry: left/right/above/below primary display, mixed scale metadata, zero-width carets, spanning windows, usable-frame edges, and missing geometry.
 - Session state: duplicate Enter, cancellation during capture/validation, late AX/search callbacks, app exit, changed target, and overlapping invocations.
 - Focus handoff and modifiers: dispatch cannot occur while the picker is the receiver, while physical modifiers remain held, or after the source field changes.
+- Input source switching: dynamic layout changes update shortcut recorder labels and trigger key translation without corrupting active dead-key state or dropping trigger recognition.
 - Typed-trigger state: committed two-colon recognition, allowed boundaries, timeouts, resets, exclusions, auto-repeat, observer shutdown, synthetic-event filtering, and no reentrancy from the picker.
 - Activation replacement: correct UTF-16 ranges after emoji, fast source/panel query splits in every position, source edits before commit, failed selection preparation, Escape/Copy preserving source activation text, and no blind deletion or duplicate transport.
 - Transport selection: choose a method before dispatch; no implicit second transport after an unconfirmed first dispatch.
@@ -629,6 +630,8 @@ These references establish available platform/data capabilities. The placement, 
 - [Apple: request keyboard-listening access](https://developer.apple.com/documentation/coregraphics/cgrequestlisteneventaccess%28%29).
 - [Apple: pasteboard change count](https://developer.apple.com/documentation/appkit/nspasteboard/changecount).
 - [Apple: login item service](https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp).
+- [Apple: NSTextInputContext keyboardSelectionDidChangeNotification](https://developer.apple.com/documentation/appkit/nstextinputcontext/keyboardselectiondidchangenotification).
+- [Apple: UCKeyTranslate](https://developer.apple.com/documentation/coreservices/1390584-uckeytranslate).
 - [Electron: accessibility integration](https://www.electronjs.org/docs/latest/tutorial/accessibility).
 - [Unicode Character Database](https://www.unicode.org/ucd/).
 - [Unicode Emoji specification, UTS #51](https://www.unicode.org/reports/tr51/).
