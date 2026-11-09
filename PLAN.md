@@ -448,7 +448,7 @@ Implement in small reviewable commits. The native risk spike is a gate for the b
 
 ### M1 — Prove focus, placement, and insertion
 
-- [ ] Register a configurable shortcut and capture the original target before presentation.
+- [ ] Register the default `⌃P` shortcut with a working recorder in Settings, and capture the original target before presentation.
 - [ ] Show a minimal nonactivating panel with a handful of fixed fixtures: `→`, `—`, `∞`, `😀`, `👍🏽`, `👩‍💻`, and `🇨🇭`.
 - [ ] Implement geometry conversion and the complete display fallback chain.
 - [ ] Implement cancellation, target validation, and one-dispatch session control.
@@ -456,6 +456,7 @@ Implement in small reviewable commits. The native risk spike is a gate for the b
 - [ ] Spike committed `::` detection, uninterrupted fast `::arrow` handoff, exact activation-range selection/replacement, Escape preservation, layout/IME limits, and the additional permission path before promising universal typed-trigger support.
 - [ ] Test two displays, the mouse on the other screen, negative/vertical display layouts, mixed scale factors, and full-screen/Spaces behaviour.
 - [ ] Record actual app/OS/version/backend results in `docs/compatibility.md` and capture decisions in a short technical note.
+- [ ] Provide the minimal Copy fallback that these exit criteria depend on, before they are judged; the full Copy action and its settings arrive in M3.
 
 **Exit:** the core flow works in a native text view and ordinary browser field on both displays. Known incompatible contexts have a predictable Copy path. No unexplained wrong-target insertion or duplicate dispatch remains. If these behaviours cannot be achieved, narrow the supported matrix explicitly before proceeding.
 
@@ -479,13 +480,13 @@ Implement in small reviewable commits. The native risk spike is a gate for the b
 
 ### M4 — Make it a dependable daily utility
 
-- [ ] Add versioned persistence, recovery/migration, shortcut recording, and optional launch at login.
+- [ ] Add versioned persistence, recovery/migration, and optional launch at login.
 - [ ] Add Accessibility onboarding and browse/copy mode.
 - [ ] Implement opt-in `::` observation, its separate permission flow, pause/exclusions, boundary checks, bounded fast-typing handoff, and the activation-range replacement transaction proven in M1.
 - [ ] Add only the compatibility overrides demonstrated necessary by M1; document the clipboard policy in user-facing terms.
 - [ ] Handle permission revocation, app termination, display changes, sleep/wake, and stale AX elements.
 
-**Exit:** favourites/settings survive relaunch; permission and compatibility failures are recoverable; all priority-zero scenarios below pass.
+**Exit:** favourites/settings survive relaunch; permission and compatibility failures are recoverable; every priority-zero scenario in §12.2 that does not depend on the M5 compatibility matrix passes, and each remaining P0 row carries a recorded, dated status in `docs/compatibility.md` rather than an assumption.
 
 ### M5 — Verify and package the first release
 
@@ -493,7 +494,7 @@ Implement in small reviewable commits. The native risk spike is a gate for the b
 - [ ] Measure performance using release builds and record the hardware/OS used.
 - [ ] Produce a signed/notarized app and distribution archive, using an appropriate Developer ID identity supplied through local/CI signing configuration.
 - [ ] Verify a downloaded build on a clean user account, including launch, trust onboarding, login item, and quitting.
-- [ ] Publish build instructions, compatibility notes, release notes, and checksums with the release.
+- [ ] Publish build instructions, compatibility notes, release notes, and checksums with the release, together with the documentation §14 already requires: uninstalling and disabling launch at login, privacy behaviour, current compatibility, and how to recover insertion permission.
 
 **Exit:** a fresh user can install, grant only needed access, invoke Charms, insert symbols/emoji in documented contexts, and remove or quit it normally.
 
@@ -552,7 +553,7 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 
 ### 12.3 Real application coverage
 
-Record app version, macOS version, input type, display configuration, placement source, insertion backend, selection replacement, Undo, and clipboard result. Start with:
+Record app version, macOS version, input type, display configuration, placement source, insertion backend, selection replacement, Undo, clipboard result, and CPU architecture. Start with:
 
 - TextEdit plain text and rich text; Notes and Mail.
 - Safari and Chrome native form inputs and textareas.
@@ -560,7 +561,7 @@ Record app version, macOS version, input type, display configuration, placement 
 - An Electron editor or messaging application, including VS Code if it is part of the user's workflow.
 - Terminal and one remote-desktop/virtualized input context as explicit compatibility probes, not assumed supported contexts.
 
-Check whether Electron needs its accessibility tree enabled through the documented accessibility mechanism. Do not infer that one successful Electron app or browser field establishes support for all editors. Publish limitations and Copy fallbacks with the tested matrix.
+Check whether Electron needs its accessibility tree enabled through the documented accessibility mechanism. Do not infer that one successful Electron app or browser field establishes support for all editors. Publish limitations and Copy fallbacks with the tested matrix. Recording CPU architecture is what makes the §2 universal-build precondition checkable: the matrix needs at least one Apple Silicon and one Intel result before a universal build is published, rather than a build that merely links for both.
 
 ## 13. Performance and reliability budgets
 
@@ -582,6 +583,8 @@ Preload or lazily prepare the immutable catalogue without delaying first keyboar
 - Document a predictable development installation/run path. Never automate granting TCC access or reset the user's permission database as a routine build step.
 - Keep certificates, credentials, notarization material, and provisioning data outside the repository; use local Keychain or CI secret storage.
 - Build without signing for ordinary CI checks where appropriate, and use a separate explicit signed release job.
+- Make that signed release job concrete: store notarization credentials as a `notarytool` Keychain profile outside the repository, submit with `xcrun notarytool submit --wait`, staple the ticket with `xcrun stapler staple`, and verify the outcome with `xcrun stapler validate` plus `spctl --assess` against a copy obtained the way a user would download it. Record the exact commands in `docs/release.md`, so "signed and notarized" is a checklist rather than an intention.
+- Define "reproducible" before relying on it: either a clean checkout at a pinned commit, rebuilt on the documented toolchain, produces byte-identical archives, or the release notes state plainly that the published checksums identify the artifact rather than prove a reproducible build. Verify whichever claim is made once per release instead of assuming it.
 - Add CI for a macOS build, meaningful unit tests, deterministic data validation, and release-artifact checks. Use currently available supported runner/toolchain versions when implementing it, rather than freezing guessed service versions in this plan.
 - A signing identity/Apple Developer account is a release prerequisite, not a reason to block unsigned local prototyping.
 - Document uninstalling/disabling launch at login, privacy behaviour, current compatibility, and how to recover insertion permission.
