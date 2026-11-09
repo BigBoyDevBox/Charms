@@ -160,6 +160,8 @@ On first launch, explain Accessibility access in plain language: Charms uses it 
 
 Enabling `::` is a separate, opt-in step. Explain that recognizing it requires observing keyboard events and briefly tracking the explicit trigger/query transition, request Input Monitoring through the applicable public API if needed, and leave the keyboard-shortcut path usable when this permission is denied. Disabling the option removes the event observer and clears its transient state.
 
+The typed trigger depends on the insertion permission as well, because its only purpose is to replace the marker in the source field (§7.6); Input Monitoring alone is not sufficient. Pick one behaviour for the case where Accessibility access is missing or revoked — including the Browse and Copy choice made at onboarding — and document it in Settings: either refuse to enable `::` and say why, or let recognition run and have every typed invocation degrade to the browse/copy behaviour above with the marker left in place. What must not happen is a typed session that opens, implies it will insert, and then cannot.
+
 The design does not require Screen Recording, microphone, contacts, or Full Disk Access. Keyboard observation runs only while the typed-trigger option is enabled and eligible. Validate the actual authorization requirements of each backend during the spike; add no permission without a demonstrated need.
 
 ## 5. Native architecture
@@ -325,7 +327,7 @@ The release gate is predictable behaviour with a documented compatibility method
 
 Treat typed invocation as a separate input adapter, not a second picker or an unrestricted text expander.
 
-- Install a listen-only system keyboard observer/event tap only after the user enables the feature and the needed access is granted. Keep the callback fast; do not perform blocking AX calls inside it.
+- Install a listen-only system keyboard observer/event tap only after the user enables the feature and the needed access is granted. Keep the callback fast; do not perform blocking AX calls inside it. Require the insertion permission alongside Input Monitoring before installing it: recognizing a marker without the ability to replace it produces sessions that cannot complete, so drop the observer if either permission is lost.
 - Recognize the produced colon characters using the active input context, not hard-coded U.S. key positions. Confirm actual committed `::` text and any exactly tracked transition prefix in the source before enabling insertion.
 - The event notification may precede the source app updating its AX selection. Use a bounded asynchronous reconciliation step; if the marker cannot be confirmed, leave the source untouched and do not open automatically.
 - Before a trigger candidate, keep only minimal recognition state, such as a first-colon candidate, boundary state, source identity, and timestamp. After `::`, a bounded transient query-prefix buffer is allowed only for the handoff below. Do not buffer unrelated typing or log either form of state.
@@ -541,7 +543,7 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P0 | Type `::` and switch apps during asynchronous capture/handoff | No late popup or insertion appears in the new app; returning does not revive the old session. |
 | P0 | Press the shortcut during a first-colon or `::` candidate | One shortcut session opens, pending trigger work is invalidated, and literal source text remains intact. |
 | P0 | Typed invocation in native rich text, browser contenteditable, and a custom-rendered editor | Exact range replacement works only where proven; insufficient AX support preserves source text and offers shortcut/Copy without guessing offsets. |
-| P0 | Typed trigger disabled, paused, excluded, secure, or permission denied | No automatic popup or trigger processing; disabling/pausing removes the observer, and the configured shortcut remains usable where permitted. |
+| P0 | Typed trigger disabled, paused, excluded, secure, or permission denied | No automatic popup or trigger processing; disabling/pausing removes the observer, and the configured shortcut remains usable where permitted. Where the trigger is enabled but insertion access is missing, the documented §4.4 behaviour applies and the marker is never removed. |
 | P0 | Held Shift/Command/Option during selection | No synthetic release of physical keys and no dispatch to the panel or unintended receiver. |
 | P1 | Display is unplugged, rearranged, or changes resolution | Session cancels/revalidates safely and the next invocation chooses the new correct display. |
 | P1 | IME marked text and candidate selection | Search composition works and candidate Return/Escape does not insert/cancel prematurely. |
