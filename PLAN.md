@@ -140,7 +140,7 @@ Confirm these search-field/result navigation rules with a small native interacti
 - Deduplicate recents by exact sequence and cap stored history, initially at 50 entries. Show only the compact leading portion in the empty-query grid.
 - Provide Clear Recents in settings. Retain favourites separately.
 - Store the exact selected emoji variant. A small secondary variant chooser may expose skin tones for entries with defined variants; do not manufacture combinations by appending arbitrary modifiers.
-- A preferred skin tone can choose a valid default variant, while explicitly saved favourite variants remain unchanged.
+- A preferred skin tone can choose a valid default variant, while explicitly saved favourite variants remain unchanged. Apply it only where the emoji data defines that modifier variant for the entry (`emoji-sequences.txt` for single-person modifier sequences, `emoji-zwj-sequences.txt` for ZWJ sequences); otherwise show the base entry.
 - Use the system's native text/emoji rendering. Preview combining marks against a dotted-circle guide when necessary; the guide must never become part of the inserted string.
 
 ### 4.4 Menu bar, settings, and onboarding
@@ -366,13 +366,14 @@ Escape and explicit Copy leave source activation text intact. Choosing a symbol 
 
 ### 8.1 Data sources and coverage
 
-Build a bundled catalogue from pinned official Unicode Character Database data, official emoji data, and CLDR English annotations. Add a small reviewed alias file for familiar terms such as `cmd`, `option`, `tick`, `->`, and `not equal`.
+Build a bundled catalogue from pinned official Unicode Character Database data, official emoji data, and CLDR English annotations. Take each emoji sequence's qualification status and the emoji version that introduced it from `emoji-test.txt`. Use CLDR's derived annotations (`annotationsDerived`) as well as the base `annotations`: the base files cover single characters, while names and keywords for skin-tone, flag, keycap, and many ZWJ sequences, such as "thumbs up: medium skin tone" or "flag: Scotland", come only from the derived files. CLDR keys omit U+FE0F, so map each annotation onto the fully-qualified sequence from the emoji data rather than joining on the exact string. Every recommended sequence must resolve to a name or be listed as excluded in the generator manifest. Add a small reviewed alias file for familiar terms such as `cmd`, `option`, `tick`, `->`, and `not equal`.
 
-- Include assigned graphic characters and useful whitespace/punctuation, plus complete recommended emoji sequences.
+- Include assigned graphic characters and useful whitespace/punctuation, plus complete recommended emoji sequences in their fully-qualified form. Never insert the minimally-qualified or unqualified forms that `emoji-test.txt` also lists. The recommended set includes emoji tag sequences, the subdivision flags such as 🏴󠁧󠁢󠁳󠁣󠁴󠁿 (U+1F3F4 followed by tag characters); preserve them like the other sequence types in 8.2.
+- Large ideographic and syllabic repertoires make up most assigned characters (about 82% in Unicode 17): CJK Unified and Compatibility Ideographs, Hangul syllables, Tangut, Egyptian hieroglyphs, and similar blocks. Their names are algorithmic or uninformative to an English-speaking user (`CJK UNIFIED IDEOGRAPH-4E00`, `HANGUL SYLLABLE JJWAELM`). Keep them out of name search and the ordinary result grid, but reachable by pasting the character or entering an explicit code point; alternatively exclude them. Record the choice in the generator manifest and measure its effect on the memory and query budgets in section 13.
 - Exclude unassigned scalars, surrogate code points, noncharacters, private-use glyphs, and standalone control/format/emoji components from normal suggestions. Document the exact coverage in the generator manifest.
 - Give whitespace and combining characters visible names and suitable previews so the user understands what they will insert.
 - Correctly expand source ranges and algorithmic names; do not expose Unicode data placeholders as user-facing names.
-- The initial data version must be selected against the oldest supported macOS rendering behaviour, then pinned with checksums. Do not equate the latest Unicode data with the emoji repertoire rendered by every supported OS.
+- Pin the data release with checksums. Do not equate the latest Unicode data with the emoji repertoire rendered by every supported OS. One build runs on several macOS versions, so do not limit every user to the oldest supported system's repertoire either: store each emoji entry's emoji version and decide at runtime which entries the running system renders, using an OS-to-emoji-version table established in the spike, or a check that the system font draws the sequence as a single glyph, or both.
 - Handle known unsupported/missing glyphs deliberately. Hide unsupported emoji variants by default where support is known; retain understandable labels and explicit copy behaviour for entries that cannot be previewed reliably.
 
 The catalogue generator is a development/build tool. The released app performs no data downloads or remote lookups.
@@ -383,7 +384,7 @@ Each entry needs:
 
 - Stable identifier derived from its exact scalar sequence.
 - Exact output `String` and scalar values; never assume one character equals one scalar or one UTF-16 unit.
-- Human-readable display name, official name where applicable, aliases, category/group, and search tokens.
+- Human-readable display name, official name where applicable, aliases, category/group, and search tokens. Search tokens come from the CLDR name and keywords, the official Unicode name, and curated aliases. Some words exist in only one source: `happy` is only a CLDR keyword of 😀, and `rightwards` and `north east` only appear in the official names of → and ↗, whose CLDR names are `right-pointing arrow` and `up-right arrow`.
 - Kind/presentation metadata, variant-family relationships, and any known rendering-support metadata.
 - Source-data version and provenance in the catalogue manifest.
 
@@ -393,13 +394,13 @@ Preserve variation selectors, ZWJ joins, modifiers, keycap sequences, and region
 
 Start with a lightweight in-memory index rather than a database or external search service:
 
-1. Exact literal character/sequence and valid exact code-point query.
-2. Exact familiar alias or display-name match.
+1. Exact literal character/sequence and valid exact code-point query. A query of plain ASCII letters or digits is a word, not a literal: `x` should find ✕ and ✗, not LATIN SMALL LETTER X.
+2. Exact familiar alias, display-name, or CLDR keyword match.
 3. Token-prefix matches.
 4. All-token substring matches.
 5. Bounded fuzzy matching for genuine spelling variation, if it improves the fixtures.
 
-Favourites and usage can break ties within a relevance tier; they must not push an unrelated frequent item above an exact query. Keep deterministic ordering for ties. Preserve punctuation aliases such as `->` and `!=` during tokenization.
+Favourites and recency can break ties within a relevance tier; they must not push an unrelated frequent item above an exact query. Keep deterministic ordering for ties. Preserve punctuation aliases such as `->` and `!=` during tokenization. Apart from such aliases, split names and keywords on whitespace and hyphens, so `up right` matches `up-right arrow`; a token-prefix match means every query token is a prefix of some entry token. Match the literal and code-point tiers against the raw query, before case or accent folding. Code points are hexadecimal; accept `U+` in either case, and several code points separated by spaces or commas as one sequence.
 
 Support case-insensitive and accent-insensitive search keys, multiple query words, literal pasted symbols, and `U+2192`/`2192` notation. Multi-code-point lookup must parse an entire sequence instead of accepting only its first scalar. Reject invalid scalars gracefully.
 
@@ -450,6 +451,7 @@ Implement in small reviewable commits. The native risk spike is a gate for the b
 
 - [ ] Register a configurable shortcut and capture the original target before presentation.
 - [ ] Show a minimal nonactivating panel with a handful of fixed fixtures: `→`, `—`, `∞`, `😀`, `👍🏽`, `👩‍💻`, and `🇨🇭`.
+- [ ] Add the sequence types the P0 matrix requires to those fixtures: a keycap (`#️⃣`), a variation-selector emoji (`❤️`), and a tag-sequence flag (`🏴󠁧󠁢󠁳󠁣󠁴󠁿`).
 - [ ] Implement geometry conversion and the complete display fallback chain.
 - [ ] Implement cancellation, target validation, and one-dispatch session control.
 - [ ] Compare Unicode events and explicit plain-text paste with selection replacement and Undo.
@@ -513,6 +515,7 @@ Focus automated tests on decisions with meaningful independent expected outcomes
 - Unicode round trips: BMP symbols, supplementary scalars, variation selectors, skin tones, ZWJ sequences, flags, keycaps, and combining marks.
 - Search: a fixed corpus with independently chosen expected results, alias punctuation, code-point parsing, stable ranking, and cancellation of old queries.
 - Persistence: first-run seeding, intentionally empty favourites, ordering, migration, unknown IDs, interrupted writes, and corrupt-file recovery.
+- Catalogue and search coverage: tag-sequence flags round-trip exactly; keyword-only matches such as `happy`, official-name matches such as `rightwards arrow`, hyphenated names queried as `up right`, and single ASCII letters behave as specified; the example queries in section 3 return independently chosen top results.
 
 Use a small native test harness for known AX fields and editing behaviour. UI tests should verify a few critical flows, not mirror every view implementation. Hosted CI can build and test pure logic; it cannot prove real multiple-display or TCC permission behaviour.
 
