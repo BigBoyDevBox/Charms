@@ -225,9 +225,9 @@ On each invocation, create a new session containing:
 
 Keep this snapshot in memory only and discard it after the session ends. Shortcut/menu-bar invocation does not read selected text or document contents. Typed invocation may read only the marker, a bounded source-side query prefix during focus transfer, and a small boundary context. Neither path captures the window title or clipboard as part of ordinary invocation.
 
-Try the focused element's selected range and the bounds-for-range AX parameter. A collapsed selection is normally the caret. Some apps return no useful bounds, and that is an expected compatibility condition.
+Try the focused element's selected range and the bounds-for-range AX parameter. A collapsed selection is normally the caret. Some apps return no useful bounds, and that is an expected compatibility condition. Many apps return an empty or zero rectangle for a zero-length range, so probe in a fixed order: the zero-length range itself, then the character before the caret (use its trailing edge), then the character after it (use its leading edge). Step over a whole surrogate pair or composed sequence rather than half of one. A newline or a wrapped line's first character can report a rectangle on another line, so check that the derived caret lies on the same line as its neighbour. In an empty field, fall back to the field's bounds.
 
-For a non-empty selection, anchor near a reliable end-of-selection caret rectangle when available; otherwise use the selection or field bounds. Do not turn an unsupported range query into a request for the entire document.
+For a non-empty selection, anchor near a reliable end-of-selection caret rectangle when available, found by applying the probes above at the selection's end; otherwise use the selection or field bounds. Do not turn an unsupported range query into a request for the entire document.
 
 Bound AX messaging time and the total capture deadline. If a request is slow, present using already captured reliable window/display geometry, then ignore replies after cancellation or session replacement. A hung external application must not freeze the picker.
 
@@ -240,6 +240,8 @@ Bound AX messaging time and the total capture deadline. If a request is slow, pr
 5. **Primary available display:** final fallback if the mouse is not within a current screen.
 
 Select the screen from captured geometry rather than consulting the picker's own `NSScreen.main` after it has become key. Do not remember a last-used global panel position that overrides the current source.
+
+When Accessibility is unavailable (browse/copy mode) or returns no focused window, obtain level 3 from the window list before falling back to the mouse: `CGWindowListCopyWindowInfo` reports on-screen windows front to back with their bounds, layer, and owning process. Use the frontmost application's topmost normal-layer window; its bounds use the same top-left global space as Accessibility. Window titles require Screen Recording permission. Bounds reportedly do not, but Apple does not document which keys are gated, so confirm this in the spike and add no permission for it.
 
 ### 6.3 Coordinate and bounds rules
 
@@ -524,7 +526,7 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P0 | Caret unavailable; focused window on B; mouse on A | Picker uses B and a window/field fallback. |
 | P0 | Left/above-primary and mixed Retina/non-Retina layouts | Picker coordinates and size remain correct, entirely within the chosen usable frame. |
 | P0 | Caret near each display edge, Dock, or menu bar | Picker flips/clamps without disappearing or covering the insertion line unnecessarily. |
-| P0 | Source app in full screen with independent display Spaces | Picker appears in the current context without a Space switch. |
+| P0 | Source app in full screen with independent display Spaces, and again with Stage Manager on | Picker appears in the current context without a Space switch. |
 | P0 | Escape or outside click | No document/clipboard change; typing resumes in the still-current source. |
 | P0 | Selected text in the source | One insertion replaces the selected range; unrelated text and formatting remain intact. |
 | P0 | Arrow, non-BMP emoji, skin tone, ZWJ, flag, and keycap fixtures | Exact complete strings are inserted; Undo behaves normally in supported apps. |
@@ -544,6 +546,7 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P0 | Typed trigger disabled, paused, excluded, secure, or permission denied | No automatic popup or trigger processing; disabling/pausing removes the observer, and the configured shortcut remains usable where permitted. |
 | P0 | Held Shift/Command/Option during selection | No synthetic release of physical keys and no dispatch to the panel or unintended receiver. |
 | P1 | Display is unplugged, rearranged, or changes resolution | Session cancels/revalidates safely and the next invocation chooses the new correct display. |
+| P1 | Accessibility not granted; front window on display B; mouse on A | The browse/copy picker opens on B, chosen from the window list. |
 | P1 | IME marked text and candidate selection | Search composition works and candidate Return/Escape does not insert/cancel prematurely. |
 | P1 | `std::`, a pasted `::`, rapid repeats, U.S. and at least one non-U.S. colon layout, and another app's shortcode UI | Only confirmed eligible committed markers invoke Charms independent of physical key position; exclusions/boundaries prevent duplicate or unwanted handling. |
 | P1 | Shortcut collision, changed layout, or PopChar still owning `⌃P` | Conflict is recoverable; recorder labels remain accurate and another shortcut can be chosen. |
@@ -562,13 +565,15 @@ Record app version, macOS version, input type, display configuration, placement 
 
 Check whether Electron needs its accessibility tree enabled through the documented accessibility mechanism. Do not infer that one successful Electron app or browser field establishes support for all editors. Publish limitations and Copy fallbacks with the tested matrix.
 
+Electron apps, and reportedly other Chromium-based apps, build their web-content accessibility tree only after an assistive client asks for it, so the first query can return little more than the window. Use Electron's documented `AXManualAccessibility` attribute on the application element, and establish in the spike what Chromium-based browsers need. Avoid `AXEnhancedUserInterface`, which VoiceOver uses and which has been reported to disturb window positioning by window managers. Test the first invocation after the app launches as well as later ones, and expect the first to fall back to window geometry.
+
 ## 13. Performance and reliability budgets
 
 These are initial engineering targets, to be measured and adjusted from a documented baseline rather than presented as existing claims:
 
 | Measure | Target |
 | --- | --- |
-| Warm shortcut to usable picker | 95th percentile at or below 150 ms on a documented reference Mac. |
+| Warm shortcut to usable picker | 95th percentile at or below 150 ms on a documented reference Mac, measured from the hot-key event to the first frame with a focused search field, excluding the first invocation after launch. |
 | Full-catalogue query to stable results | 95th percentile at or below 30 ms for ordinary queries; UI never blocks on catalogue generation. |
 | Idle behaviour | No polling of document text or recurring network requests; no keyboard observer when `::` is off, and a negligible-cost observer when enabled. |
 | Memory | Aim below 75 MB at idle; measure the actual catalogue/index cost before adding a database or cache hierarchy. |
@@ -630,6 +635,7 @@ These references establish available platform/data capabilities. The placement, 
 - [Apple: pasteboard change count](https://developer.apple.com/documentation/appkit/nspasteboard/changecount).
 - [Apple: login item service](https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp).
 - [Electron: accessibility integration](https://www.electronjs.org/docs/latest/tutorial/accessibility).
+- [Apple: window list information](https://developer.apple.com/documentation/coregraphics/cgwindowlistcopywindowinfo(_:_:)).
 - [Unicode Character Database](https://www.unicode.org/ucd/).
 - [Unicode Emoji specification, UTS #51](https://www.unicode.org/reports/tr51/).
 - [CLDR releases and downloads](https://cldr.unicode.org/index/downloads).
