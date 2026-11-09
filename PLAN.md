@@ -243,7 +243,9 @@ Select the screen from captured geometry rather than consulting the picker's own
 
 ### 6.3 Coordinate and bounds rules
 
-- Centralize conversion between Accessibility global coordinates and AppKit screen coordinates. Verify the desktop origin transform across all connected displays.
+- Centralize conversion between Accessibility global coordinates and AppKit screen coordinates in one tested helper, and write its contract down rather than rediscovering it at each call site. The two systems disagree about both axes: Accessibility global display coordinates have their origin at the **top-left of the primary display** with y increasing downward, while AppKit window coordinates have their origin at the **bottom-left of the primary display** with y increasing upward.
+- Anchor that transform on the primary display's full `frame`, never its `visibleFrame`. The menu bar and Dock are already excluded from `visibleFrame`, so using it shifts every converted point and effectively double-counts them.
+- Verify the transform stays correct when another display is arranged above or to the left of the primary, where Accessibility global coordinates are negative and the familiar "primary height minus y" arithmetic silently produces points on no connected screen. Cover that arrangement in the pure geometry tests rather than only on a side-by-side desk.
 - Use logical points for window layout. Do not apply a screen's backing scale twice.
 - Accept a zero-width caret with a meaningful height. Reject non-finite values, implausible geometry, stale offscreen rectangles, and bounds unrelated to any connected screen.
 - Prefer below the caret with a small gap, flip above if necessary, and clamp to the selected display's `visibleFrame` with an approximately 12-point margin.
@@ -503,7 +505,7 @@ Implement in small reviewable commits. The native risk spike is a gate for the b
 
 Focus automated tests on decisions with meaningful independent expected outcomes:
 
-- Placement geometry: left/right/above/below primary display, mixed scale metadata, zero-width carets, spanning windows, usable-frame edges, and missing geometry.
+- Placement geometry: left/right/above/below primary display, mixed scale metadata, zero-width carets, spanning windows, usable-frame edges, and missing geometry. Include the Accessibility-to-AppKit round trip itself, anchored on the primary screen's full frame, with a display arranged above and left of the primary so negative global origins are covered.
 - Session state: duplicate Enter, cancellation during capture/validation, late AX/search callbacks, app exit, changed target, and overlapping invocations.
 - Focus handoff and modifiers: dispatch cannot occur while the picker is the receiver, while physical modifiers remain held, or after the source field changes.
 - Typed-trigger state: committed two-colon recognition, allowed boundaries, timeouts, resets, exclusions, auto-repeat, observer shutdown, synthetic-event filtering, and no reentrancy from the picker.
