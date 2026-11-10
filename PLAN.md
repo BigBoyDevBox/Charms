@@ -490,7 +490,7 @@ Retain required Unicode/CLDR and any package notices in `THIRD_PARTY_NOTICES.md`
 - Keep favourite/variant actions available to keyboard users; do not hide essential actions behind hover alone.
 - Honour system text size, contrast, reduced motion, dark/light appearance, and keyboard focus settings.
 - Test marked-text composition and non-U.S. keyboard layouts. Record/display shortcuts according to the current layout while retaining stable registration semantics.
-- Verify focus restoration with VoiceOver as well as visually; a dismissed panel must not leave assistive focus stranded.
+- Verify focus restoration with VoiceOver as well as visually; a dismissed panel must not leave assistive focus stranded. Because the picker is presented in a nonactivating panel without full application activation, post `NSAccessibility.Notification.focusedUIElementChanged` targeting the search field when the panel opens so VoiceOver moves assistive focus to the search field immediately, and post it to the captured target element on dismissal.
 
 ## 11. Delivery milestones
 
