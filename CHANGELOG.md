@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-10
+
+The first release.
+
 ### Added
 
 - The picker: a compact grid with search, favourites, recents and a footer

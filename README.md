@@ -64,7 +64,9 @@ yourself. Nothing leaves your Mac: see [PRIVACY.md](PRIVACY.md).
 
 Download the `.dmg` from the [latest release](https://github.com/L-K-M/Charms/releases/latest),
 drag Charms to Applications, and open it. Releases are not signed with a
-Developer ID or notarized, so macOS warns on first launch: Control-click the
+Developer ID or notarized, so macOS refuses the first launch. On macOS 15 or
+later, try to open Charms once, dismiss the warning, then click Open Anyway
+under Privacy & Security in System Settings. On macOS 14, Control-click the
 app, choose Open, then Open. Requires macOS 14 or later.
 
 If another utility already uses Control-P, for example PopChar, quit it or
