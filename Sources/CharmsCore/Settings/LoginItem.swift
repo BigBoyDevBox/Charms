@@ -6,7 +6,7 @@ public enum LoginItem {
     /// The system's answer about the app's login item.
     public enum Status: Equatable, Sendable, CaseIterable {
         case enabled
-        /// Registered, but switched off or not yet allowed in System Settings.
+        /// Registered, but the user has to allow it in System Settings.
         case requiresApproval
         case notRegistered
         /// The system has no record of the login item. This is the answer
