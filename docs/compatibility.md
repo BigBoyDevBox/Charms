@@ -22,7 +22,7 @@ One system so far, on 10 November 2026:
 - **End to end:** `scripts/e2e.sh` drives the built app with real key and
   mouse events against the `CharmsHarness` window (an `NSTextView`, an
   `NSTextField` and an `NSSecureTextField`) and compares the text that
-  arrives, scalar for scalar. All 17 scenarios passed.
+  arrives, scalar for scalar. All 21 scenarios passed.
 - **By hand:** the built app in the applications below, driven with the same
   synthetic keys, with screenshots and the app's own trace (`CHARMS_TRACE`).
 
@@ -35,11 +35,15 @@ One system so far, on 10 November 2026:
 | `replace_selection` | A selection in the source is replaced by the character. |
 | `sequence` | A joined emoji sequence (technologist, U+1F9D1 U+200D U+1F4BB) arrives exactly. |
 | `navigate` | Arrow keys act on the results from the first press. |
+| `first_selected` | Control-P and Return, with nothing typed: the first favourite arrives. |
 | `copy` | Command-Return copies and inserts nothing. |
 | `placement` | The picker window is at the caret and does not cover the caret's line. |
 | `click_cell`, `click_outside` | A click on a cell inserts it; a click elsewhere cancels and changes nothing. |
 | `cancel_while_held` | Escape pressed while Return is still down: the picker stays until Return is released, then closes without inserting. |
 | `typed_trigger`, `typed_trigger_fast` | `::arrow` and Return replace the colons and the query, also when typed with 6 ms between keys. |
+| `typed_trigger_first_selected` | `::`, Tab and Return replace the colons with the first favourite. |
+| `typed_trigger_late_selection` | A field that applies a selection made through Accessibility 30 ms after the call, as Chromium does: the colons are still replaced. |
+| `typed_trigger_selection_refused` | A field that accepts that call and never honours it: nothing is sent, the picker offers Copy, and Escape leaves the colons. |
 | `typed_trigger_escape` | Escape after `::ar` leaves `::` as typed. |
 | `colons_inside_a_word` | `std::cout` does not open the picker. |
 | `password_field` | In a password field nothing is sent; Return copies. |
@@ -56,6 +60,9 @@ One system so far, on 10 November 2026:
 | Safari 27.0.1 | `<input type="text">` | At the end of the selection | Selection replaced |
 | Safari 27.0.1 | `contenteditable` element | Beside the caret | Joined emoji sequence exact |
 | Safari 27.0.1 | `<input type="password">` | Under the field | Copy only, as intended |
+| Safari 27.0.1 | `<textarea>`, typed `::` | Below the caret | `::`, Tab and Return replace the colons |
+| Electron 45.2.3 with its accessibility tree on | `<textarea>`, `<input type="text">`, `contenteditable` element | Beside the caret | Typed `::` with a name: the colons and the name are replaced in all three. Shortcut in the `<textarea>`: Unicode events. |
+| Electron 45.2.3 with its accessibility tree off | `<textarea>` | Over its window | Copy only: the application reports no focused field. Typed `::` does nothing. |
 | Terminal 2.15 | zsh prompt | Beside the cursor, estimated from the previous character | Unicode events |
 | An application without a text field in front | | Over its window | Copy only |
 
@@ -108,13 +115,17 @@ Release build, Apple M4 Max, macOS 27.0.1.
   with Xcode 26 on macOS 26, but the app has only been run on macOS 27.
 - **Intel Macs.** Release builds are universal; the Intel half has not been
   run.
-- **Chromium and Electron applications** (Chrome, VS Code, Slack and the
-  like), **Firefox**, **Microsoft Office**, **JetBrains** IDEs. None was
-  installed. These are the likeliest to need the "insert by pasting" list.
+- **Chrome and real Electron applications** (VS Code, Slack and the like),
+  **Firefox**, **Microsoft Office**, **JetBrains** IDEs. None was installed.
+  Electron was tried only as a bare Electron 45 window showing a test page.
+  An Electron application keeps its accessibility tree off until an
+  assistive tool asks for it; while it is off Charms sees no field there
+  and offers Copy only. Charms does not switch it on.
 - **Notes, Mail, Messages, Pages.** Left alone on the test machine so as not
   to write into real data.
-- **The typed `::`** outside TextEdit and the harness. It is off by default
-  and off in terminals, editors and password managers.
+- **The typed `::`** outside TextEdit, the harness, a Safari `<textarea>`
+  and the Electron test page. It is off by default and off in terminals,
+  editors and password managers.
 - **Input methods** (Japanese, Chinese, Korean). The `::` observer is
   suspended while one is composing and the picker's search field does not act
   on Return during composition; both have code and unit tests only.
