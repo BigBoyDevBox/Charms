@@ -41,10 +41,10 @@ One system so far, on 10 November 2026:
 | `click_cell`, `click_outside` | A click on a cell inserts it; a click elsewhere cancels and changes nothing. |
 | `cancel_while_held` | Escape pressed while Return is still down: the picker stays until Return is released, then closes without inserting. |
 | `typed_trigger`, `typed_trigger_fast` | `::arrow` and Return replace the colons and the query, also when typed with 6 ms between keys. |
-| `typed_trigger_first_selected` | `::`, Tab and Return replace the colons with the first favourite. |
+| `typed_trigger_first_selected` | `::` and Return replace the colons with the first favourite. |
 | `typed_trigger_late_selection` | A field that applies a selection made through Accessibility 30 ms after the call, as Chromium does: the colons are still replaced. |
 | `typed_trigger_focus_moves_during_selection` | While such a late selection is on its way, another field of the same application takes the keyboard: nothing is sent, and that field stays empty. |
-| `typed_trigger_selection_refused` | A field that accepts that call and never honours it: nothing is sent, the picker offers Copy, and Escape leaves the colons. |
+| `typed_trigger_selection_refused` | A field that accepts that call and never honours it: nothing is sent, the picker comes back for copying, a second Return copies, and the colons stay. |
 | `typed_trigger_escape` | Escape after `::ar` leaves `::` as typed. |
 | `colons_inside_a_word` | `std::cout` does not open the picker. |
 | `password_field` | In a password field nothing is sent; Return copies. |
@@ -83,6 +83,21 @@ With a bare Electron 45.2.3 window, started with its accessibility tree off:
 - "Do not ask again" with Not Now: stored, the picker opened for copying, and
   after restarting Charms there was no question. Settings showed the answer,
   and Ask Again forgot it.
+
+Follow-up dialog regressions were checked by hand on the same system, because
+these checks need an application with a dormant accessibility tree and the
+native question, which the end-to-end harness does not emulate:
+
+- Turn On, then immediately Control-P and type a query while the fields are
+  becoming available. After waiting six seconds, that picker and its query
+  remain open. Before the fix, the delayed answer closed the new picker.
+- While the question is open, activate the native harness, then answer Not
+  Now. The harness keeps the keyboard and no picker opens. Before the fix,
+  Charms brought Electron back and opened a copy-only picker there.
+- Answer Not Now without ticking the box, then use Ask Again in Settings
+  (with another application's remembered answer making the button visible).
+  Control-P in Electron asks again in the same Charms run. This checks the
+  temporary answers as well as the stored ones.
 
 ### Displays
 

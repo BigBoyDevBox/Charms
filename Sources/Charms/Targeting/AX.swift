@@ -5,7 +5,7 @@ import Foundation
 /// Thin typed wrappers around the Accessibility calls Charms makes into
 /// other applications. Every call here is a round trip to another process
 /// and may block up to the messaging timeout, so they run only on the
-/// capture queue, never on the main thread.
+/// capture service's queues, never on the main thread.
 enum AX {
     /// Upper bound for one call. A hung application then costs a bounded
     /// delay, not a frozen picker.

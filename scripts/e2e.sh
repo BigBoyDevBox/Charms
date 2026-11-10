@@ -351,12 +351,12 @@ scenario_typed_trigger() {
 }
 
 scenario_typed_trigger_first_selected() {
-    # The colons alone, then Tab into the results and Return.
+    # The colons alone and Return: the first favourite is already selected.
+    # (With Tab in between this worked before as well, since Tab selects.)
     reset "x "
     local from; from="$(mark)"
     typing "::"
     await "presented-" "$from" || { FAILURE="typing :: did not open the picker"; return 1; }
-    press tab
     press return
     await "outcome-" "$from" || { FAILURE="the session did not end"; return 1; }
     sleep 0.15
@@ -368,7 +368,7 @@ scenario_typed_trigger_late_selection() {
     # after the call returns. The colons must still be replaced.
     reset "x "
     send --op selectionDelay --ms 30 >/dev/null
-    local from; from="$(mark)" ended=0
+    local from ended=0; from="$(mark)"
     typing "::arrow"
     await "presented-" "$from" || { send --op selectionDelay --ms 0 >/dev/null; FAILURE="typing :: did not open the picker"; return 1; }
     press return
@@ -385,36 +385,39 @@ scenario_typed_trigger_focus_moves_during_selection() {
     # colons selected, but nothing may be sent: it would land in the other.
     reset "x "
     send --op selectionDelay --ms 60 --target field >/dev/null
-    local from; from="$(mark)" blocked=0
+    local from blocked=0 closed=0; from="$(mark)"
     typing "::arrow"
     await "presented-" "$from" || { send --op selectionDelay --ms 0 >/dev/null; FAILURE="typing :: did not open the picker"; return 1; }
     press return
-    await "blocked-" "$from" || blocked=1
+    await "blocked-focus-moved" "$from" || blocked=1
     sleep 0.3
     press escape
-    await "outcome-" "$from"
+    await "outcome-cancelled" "$from" || closed=1
     send --op selectionDelay --ms 0 >/dev/null
     local other; other="$(send --op state | field field)"
     expect "the other field" "$other" "" || return 1
-    (( blocked == 0 )) || { FAILURE="the insertion was not blocked"; return 1; }
+    (( blocked == 0 )) || { FAILURE="the insertion was not blocked for the moved focus"; return 1; }
+    (( closed == 0 )) || { FAILURE="Escape did not end the session"; return 1; }
     expect "text" "$(editor)" "x ::"
 }
 
 scenario_typed_trigger_selection_refused() {
     # A field that accepts the selection call and never honours it: nothing
-    # is sent, the picker offers Copy, and Escape leaves the text as typed.
+    # is sent, the picker comes back for copying, and a second Return copies.
     reset "x "
     send --op selectionDelay --ms -1 >/dev/null
-    local from; from="$(mark)" refused=0
+    local from refused=0 copied=0; from="$(mark)"
     typing "::arrow"
     await "presented-" "$from" || { send --op selectionDelay --ms 0 >/dev/null; FAILURE="typing :: did not open the picker"; return 1; }
     press return
     await "blocked-selection-refused" "$from" || refused=1
     sleep 0.2
-    press escape
-    await "outcome-cancelled" "$from"
+    press return
+    await "outcome-copied" "$from" || copied=1
     send --op selectionDelay --ms 0 >/dev/null
-    (( refused == 0 )) || { FAILURE="the refusal was not recorded"; return 1; }
+    (( refused == 0 )) || { press escape; FAILURE="the refusal was not recorded"; return 1; }
+    (( copied == 0 )) || { press escape; FAILURE="the second Return did not copy"; return 1; }
+    expect "clipboard" "$(clipboard)" "→" || return 1
     # The name was typed into the picker; the field holds the colons only.
     expect "text" "$(editor)" "x ::"
 }
