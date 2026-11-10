@@ -178,14 +178,33 @@ final class TargetCaptureService: @unchecked Sendable {
         }
     }
 
+    /// How long a field may take to report a selection it was asked to
+    /// make. AppKit and WebKit report it at once. Chromium accepts the call
+    /// and applies the selection from its renderer afterwards: measured with
+    /// Electron 45 on macOS 27, the first reading after the call still shows
+    /// the old range and the new one arrives about 3 ms later. The bound is
+    /// generous because a busy page takes longer, and because giving up
+    /// means the character is not inserted.
+    private static let selectionDeadline: TimeInterval = 0.3
+    private static let selectionPollInterval: TimeInterval = 0.004
+
     /// Selects exactly the marker and the prefix typed after it, and
-    /// confirms that the selection took.
+    /// confirms that the selection took. Only a selection the field itself
+    /// reports counts: the insertion that follows replaces whatever is
+    /// selected.
     func select(in target: CapturedTarget, location: Int, length: Int, completion: @escaping @MainActor (Bool) -> Void) {
         queue.async {
             var succeeded = false
-            if let element = target.element, AX.setSelectedRange(element, location: location, length: length),
-               let now = AX.range(element, kAXSelectedTextRangeAttribute) {
-                succeeded = now.location == location && now.length == length
+            if let element = target.element, AX.setSelectedRange(element, location: location, length: length) {
+                let deadline = ProcessInfo.processInfo.systemUptime + Self.selectionDeadline
+                while true {
+                    if let now = AX.range(element, kAXSelectedTextRangeAttribute), now.location == location, now.length == length {
+                        succeeded = true
+                        break
+                    }
+                    guard ProcessInfo.processInfo.systemUptime < deadline else { break }
+                    Thread.sleep(forTimeInterval: Self.selectionPollInterval)
+                }
             }
             Task { @MainActor in completion(succeeded) }
         }

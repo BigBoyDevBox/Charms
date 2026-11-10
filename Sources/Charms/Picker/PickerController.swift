@@ -512,11 +512,11 @@ final class PickerController: PickerSearchDelegate {
         if keepSelection, let previousItem {
             model.selection = model.position(of: previousItem.string, preferringSection: previous?.section)
                 ?? previous.flatMap { model.navigator.contains($0) ? $0 : nil }
-        } else if model.isQueryEmpty {
-            // Before a query nothing is selected; Return does nothing until
-            // the user moves into the grid.
-            model.selection = nil
+                ?? model.navigator.first
         } else {
+            // The first item is selected from the start, with or without a
+            // query: the first favourite when the picker opens, the best
+            // match while searching. Return always acts on a visible choice.
             model.selection = model.navigator.first
         }
         if model.selection == nil {

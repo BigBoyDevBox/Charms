@@ -26,7 +26,7 @@ case "send":
     for name in ["location", "length"] {
         if let value = arguments.number(name) { request[name] = Int(value) }
     }
-    for name in ["x", "y"] {
+    for name in ["x", "y", "ms"] {
         if let value = arguments.number(name) { request[name] = value }
     }
     let reply = Host.send(request, timeout: arguments.number("timeout") ?? 3)
