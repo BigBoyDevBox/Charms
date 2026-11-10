@@ -20,6 +20,9 @@ struct CapturedTarget: @unchecked Sendable {
     let fieldFrame: CGRect?
     let windowFrame: CGRect?
     let milliseconds: Double
+    /// The application reported no focused element and says that its
+    /// accessibility tree is switched off (see `FieldAccess`).
+    var hidesFields = false
 
     /// True when there is a field Charms may send text to.
     var isInsertable: Bool { element != nil && !isSecure }
@@ -71,7 +74,8 @@ final class TargetCaptureService: @unchecked Sendable {
             return CapturedTarget(
                 processID: processID, launchDate: launchDate, bundleIdentifier: bundleIdentifier, applicationName: name,
                 element: nil, isSecure: false, selection: nil, probe: CaretProbe(), fieldFrame: nil,
-                windowFrame: convert(window.flatMap(AX.frame)), milliseconds: elapsed()
+                windowFrame: convert(window.flatMap(AX.frame)), milliseconds: elapsed(),
+                hidesFields: AXIsProcessTrusted() && AX.manualAccessibility(application) == false
             )
         }
         AXUIElementSetMessagingTimeout(element, AX.messagingTimeout)
@@ -207,6 +211,46 @@ final class TargetCaptureService: @unchecked Sendable {
                 }
             }
             Task { @MainActor in completion(succeeded) }
+        }
+    }
+
+    // MARK: Applications that hide their fields
+
+    /// How long an application may take to report a focused element after
+    /// it was asked to. Measured with Electron 45: about two seconds.
+    private static let fieldsDeadline: TimeInterval = 5
+    private static let fieldsPollInterval: TimeInterval = 0.05
+
+    /// Asks an application to switch its accessibility tree on and waits
+    /// for it to report a focused element. Reports whether it did.
+    ///
+    /// The wait runs off the capture queue, which has to stay free for the
+    /// next session.
+    func requestFields(processID: pid_t, completion: @escaping @MainActor (Bool) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let application = AX.application(processID)
+            var appeared = false
+            if AX.requestManualAccessibility(application) {
+                let deadline = ProcessInfo.processInfo.systemUptime + Self.fieldsDeadline
+                while ProcessInfo.processInfo.systemUptime < deadline {
+                    if AX.element(application, kAXFocusedUIElementAttribute) != nil {
+                        appeared = true
+                        break
+                    }
+                    Thread.sleep(forTimeInterval: Self.fieldsPollInterval)
+                }
+            }
+            Task { @MainActor in completion(appeared) }
+        }
+    }
+
+    /// For an application the user agreed about earlier: asks it again if
+    /// its tree is off, as it is after every start. Does not wait.
+    func requestFieldsIfHidden(processID: pid_t) {
+        queue.async {
+            let application = AX.application(processID)
+            guard AXIsProcessTrusted(), AX.manualAccessibility(application) == false else { return }
+            _ = AX.requestManualAccessibility(application)
         }
     }
 

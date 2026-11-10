@@ -671,6 +671,8 @@ Check whether Electron needs its accessibility tree enabled through the document
 
 Test the first and later invocations after an Electron app launches. Where needed, use Electron's documented `AXManualAccessibility` integration and record the change; do not assume every Chromium browser exposes the same switch or behaviour. Do not toggle undocumented accessibility modes as a universal workaround. A delayed accessibility tree uses the normal geometry fallback rather than blocking the picker.
 
+Measured with Electron 45: an application whose tree is off reports no focused element and answers `AXManualAccessibility` with "off"; setting the attribute makes the focused field appear about two seconds later, and the tree is off again after the application restarts. Because the switch changes how another application runs, Charms does not set it by itself. When a session finds such an application it ends that attempt and asks the user, once per application: Turn On, Not Now (until Charms restarts), or do not ask again. Agreement is stored per bundle identifier, and Charms then sets the attribute whenever that application comes to the front. After the question the shortcut reopens the picker, with insertion if the field is now reported and for copying otherwise. A typed `::` shows the same question, but Return does not answer it, since the keys typed after the colons land in it. Settings lists the answers and can forget them.
+
 ## 13. Performance and reliability budgets
 
 These are initial engineering targets, to be measured and adjusted from a documented baseline rather than presented as existing claims:

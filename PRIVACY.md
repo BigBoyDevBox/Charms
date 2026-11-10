@@ -40,7 +40,8 @@ In `~/Library/Application Support/Charms/library.json`: your favourites and
 your fifty most recently used characters, each with its name.
 
 In its preferences: the shortcut, the preferred skin tone, whether the `::`
-trigger is on, and the three application lists.
+trigger is on, the three application lists, and the applications you
+answered about when Charms asked whether to turn on text field reporting.
 
 It does not store searches, typed text, document contents, window titles,
 clipboard contents, or which application you used a character in.

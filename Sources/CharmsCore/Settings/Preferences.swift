@@ -15,6 +15,11 @@ public struct Preferences: Codable, Equatable, Sendable {
     public var pasteApplications: Set<String>
     /// Applications that keep the shortcut for themselves.
     public var shortcutPassThrough: Set<String>
+    /// Applications the user agreed Charms may ask to report their text
+    /// fields (see `FieldAccess`). Charms asks them each time they start.
+    public var fieldAccessApplications: Set<String>
+    /// Applications for which the user does not want to be asked.
+    public var fieldAccessDeclined: Set<String>
     public var hasCompletedOnboarding: Bool
 
     public init(
@@ -24,6 +29,8 @@ public struct Preferences: Codable, Equatable, Sendable {
         triggerExclusions: Set<String> = DefaultApplications.triggerExclusions,
         pasteApplications: Set<String> = [],
         shortcutPassThrough: Set<String> = [],
+        fieldAccessApplications: Set<String> = [],
+        fieldAccessDeclined: Set<String> = [],
         hasCompletedOnboarding: Bool = false
     ) {
         self.shortcut = shortcut
@@ -32,12 +39,15 @@ public struct Preferences: Codable, Equatable, Sendable {
         self.triggerExclusions = triggerExclusions
         self.pasteApplications = pasteApplications
         self.shortcutPassThrough = shortcutPassThrough
+        self.fieldAccessApplications = fieldAccessApplications
+        self.fieldAccessDeclined = fieldAccessDeclined
         self.hasCompletedOnboarding = hasCompletedOnboarding
     }
 
     private enum CodingKeys: String, CodingKey {
         case shortcut, skinTone, typedTriggerEnabled
         case triggerExclusions, pasteApplications, shortcutPassThrough, hasCompletedOnboarding
+        case fieldAccessApplications, fieldAccessDeclined
     }
 
     /// Decodes leniently: a field that is absent or unreadable takes its
@@ -54,6 +64,8 @@ public struct Preferences: Codable, Equatable, Sendable {
         triggerExclusions = value(.triggerExclusions, defaults.triggerExclusions)
         pasteApplications = value(.pasteApplications, defaults.pasteApplications)
         shortcutPassThrough = value(.shortcutPassThrough, defaults.shortcutPassThrough)
+        fieldAccessApplications = value(.fieldAccessApplications, defaults.fieldAccessApplications)
+        fieldAccessDeclined = value(.fieldAccessDeclined, defaults.fieldAccessDeclined)
         hasCompletedOnboarding = value(.hasCompletedOnboarding, defaults.hasCompletedOnboarding)
     }
 

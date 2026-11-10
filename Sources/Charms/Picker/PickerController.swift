@@ -12,6 +12,7 @@ import CharmsCore
 final class PickerController: PickerSearchDelegate {
     private let services: AppServices
     private let capture = TargetCaptureService()
+    private let fieldAccess: FieldAccessController
     private let insertion: InsertionService
     private let panel = PickerPanel()
     private let model = PickerViewModel()
@@ -46,6 +47,7 @@ final class PickerController: PickerSearchDelegate {
 
     init(services: AppServices) {
         self.services = services
+        fieldAccess = FieldAccessController(services: services, capture: capture)
         insertion = InsertionService(diagnostics: services.diagnostics)
         viewController = PickerViewController(model: model)
         panel.contentViewController = viewController
@@ -79,6 +81,7 @@ final class PickerController: PickerSearchDelegate {
 
     /// The shortcut or the menu-bar item.
     func invoke(_ invocation: Invocation) {
+        guard !fieldAccess.isAsking else { return }
         // Pressing the shortcut while a typed marker is still being
         // confirmed drops that attempt and opens an ordinary session.
         let supersedesTypedCapture = machine.invocation == .typedMarker && machine.state == .capturing
@@ -90,7 +93,7 @@ final class PickerController: PickerSearchDelegate {
 
     /// `::` was typed into `processID`.
     func invokeTyped(processID: pid_t) {
-        guard machine.isIdle else { return }
+        guard machine.isIdle, !fieldAccess.isAsking else { return }
         let effects = machine.handle(.invoke(.typedMarker))
         guard case .capture(let id, _)? = effects.first else { return }
         beginCapture(id, invocation: .typedMarker, typedSource: processID)
@@ -222,6 +225,9 @@ final class PickerController: PickerSearchDelegate {
         if let target {
             services.diagnostics.record(.capture, target.isInsertable ? "capture-field" : "capture-no-field", application: target.bundleIdentifier, milliseconds: target.milliseconds)
         }
+        if let target, divertForFieldAccess(id, target: target, invocation: current.invocation) {
+            return
+        }
         let insertable = target?.isInsertable == true && Permissions.canInsert && !IsSecureEventInputEnabled()
         if current.invocation == .typedMarker {
             guard insertable else {
@@ -232,6 +238,39 @@ final class PickerController: PickerSearchDelegate {
             return
         }
         perform(machine.handle(.captured(id, insertable ? .insertable : .copyOnly)))
+    }
+
+    /// An application that hides its text fields (see `FieldAccess`): the
+    /// user is asked, once per application, whether Charms may have it
+    /// report them. Returns true when this attempt was ended for the
+    /// question.
+    private func divertForFieldAccess(_ id: SessionID, target: CapturedTarget, invocation: Invocation) -> Bool {
+        switch fieldAccess.step(for: target) {
+        case .leave:
+            return false
+        case .request:
+            // Agreed earlier, and the application has only just started.
+            // This session goes on without a field; the next one has it.
+            fieldAccess.request(target)
+            return false
+        case .offer:
+            // The attempt ends here: a question in front of an open picker
+            // would leave two things waiting for the keyboard.
+            perform(machine.handle(invocation == .typedMarker ? .markerUnconfirmed(id) : .cancel))
+            DispatchQueue.main.async { [weak self] in
+                MainActor.assumeIsolated {
+                    self?.fieldAccess.offer(for: target, returnTurnsOn: invocation != .typedMarker) { result in
+                        // The shortcut asked for the picker and now gets it:
+                        // with insertion if the answer made that possible,
+                        // for copying otherwise. A typed marker asked for
+                        // nothing that can still be given.
+                        guard invocation != .typedMarker, result != .userMovedOn else { return }
+                        self?.invoke(invocation)
+                    }
+                }
+            }
+            return true
+        }
     }
 
     private func placement(for current: Session) -> CGRect {
