@@ -1,8 +1,8 @@
 # Charms implementation plan
 
-Status: proposed implementation, ready to break into engineering tasks
+Status: final plan, under implementation
 
-Updated: 10 November 2026 (integrated PR review)
+Updated: 10 November 2026 (final review: project setup aligned with the owner's other Mac apps, native spike results recorded, data releases pinned; see `docs/reviews/2026-11-10-final-plan-review.md`)
 
 ## 1. Product direction
 
@@ -13,14 +13,14 @@ The product name is **Charms**. The selected interface direction is the **first,
 ### Alternatives considered
 
 - **macOS Character Viewer:** already searches and inserts symbols/emoji, with favourites and frequently used items. It has compact and expanded presentations. Charms must earn its place through the chosen compact workflow and demonstrably reliable focus/display placement, not claims that the built-in picker lacks these existing features. [Apple guide](https://support.apple.com/en-jo/guide/mac-help/mchlp1560).
-- **PopChar:** the user's current character-entry tool, with font browsing, search, favourites, and recents. The user's reasons for considering Charms are its window placement in their setup and the complexity of the interface. Those are the design problems to validate; do not claim that PopChar lacks favourites or that its insertion always succeeds. [PopChar help](https://help.popchar.ergonis.com/hc/en-us/articles/23108918963100-How-to-start-with-PopChar).
+- **PopChar:** the user's current character-entry tool, with font browsing, search, favourites, and recents. The user's reasons for considering Charms are its window placement in their setup and the complexity of the interface. Those are the design problems to validate; do not claim that PopChar lacks favourites or that its insertion always succeeds. PopChar 11.0 (9 November 2026) added a compact grid-only view and an Insert button that names the receiving app; its documentation says nothing about which display the window opens on, so placement remains the reason for Charms. [PopChar help](https://help.popchar.ergonis.com/hc/en-us/articles/23108918963100-How-to-start-with-PopChar).
 - **Rocket:** a direct inspiration for typed invocation. It provides Slack-style emoji autocomplete, and its Pro edition also offers a search/browse window and custom shortcuts/symbols. Charms combines the requested optional `::` invocation with a shortcut and the same compact symbol/emoji grid. [Rocket](https://matthewpalmer.net/rocket/).
 - **Named-results list:** considered in the initial concept; the user preferred the first compact grid. Keep names available in the footer and to assistive technology without treating relative scanning speed as an established fact.
 - **Browser character pickers:** useful copy-based alternatives. Charms aims to remove that extra application/clipboard step where its validated direct-insertion transport works; browser tools do not universally require a mouse or cover the same repertoire.
 
 These are design context, not measured competitive or compatibility results. Record actual supported app behaviour in §12.3 and `docs/compatibility.md`.
 
-At the planning baseline the repository contained the license but no application implementation. This document specifies intended behaviour; cross-app compatibility still needs the native spike.
+At the planning baseline the repository contained the license but no application implementation. The native spike ran on 10 November 2026 (macOS 27.0.1, Apple Silicon, Swiss German keyboard layout). Its results are written into the sections they settle and summarized in §15; they are measurements from that one machine, not claims about every Mac. `docs/compatibility.md` lists what was verified and what was not.
 
 ### Success criteria
 
@@ -39,16 +39,17 @@ At the planning baseline the repository contained the license but no application
 
 | Area | Initial decision |
 | --- | --- |
-| Platform | macOS 14 or later; confirm this deployment target during the native spike. |
-| Hardware | Design for Apple Silicon and Intel; publish a universal build only after both architectures have build coverage and real-machine validation. Apple has said macOS 26 Tahoe is the last release for Intel Macs, so Intel support would serve only macOS 14–26 and needs test hardware on those releases. |
+| Platform | macOS 14 or later, the deployment target of the owner's other Mac apps. Developed and verified on macOS 27; behaviour on macOS 14 to 26 stays unverified until it is tested there. |
+| Hardware | A universal build (arm64 and x86_64), which the shared build scripts produce for every app. Only Apple Silicon is verified. The Intel slice is built and checked for presence in CI but has not run on Intel hardware; the release notes and `docs/compatibility.md` say so instead of implying support. Apple has said macOS 26 Tahoe is the last release for Intel Macs, so that slice can only ever serve macOS 14–26. |
 | Language and UI | Swift, AppKit for application/window integration, SwiftUI for the picker and settings where it behaves reliably. |
 | Application style | Menu-bar accessory app (`Info.plist` `LSUIElement`), with no persistent Dock icon or ordinary document window. Settings/About use the accessory lifecycle; only one process may own the hot key and optional observer. |
-| Shortcut | Offer the user's preferred Control-P (`⌃P`), configurable and subject to successful registration. Explain that registration shadows existing app bindings, including previous-line/history commands; an optional per-app pass-through list can release it (§5). |
-| Typed trigger | Optional `::` recognition, enabled explicitly with any required Input Monitoring access; the shortcut remains available independently. |
-| Distribution | Direct distribution, initially through GitHub releases; signed and notarized for public builds. |
+| Shortcut | Offer the user's preferred Control-P (`⌃P`), configurable and subject to successful registration. A shortcut is a key position; its label follows the active keyboard layout. Explain that registration shadows existing app bindings, including previous-line/history commands; an optional per-app pass-through list can release it (§5). |
+| Typed trigger | Optional `::` recognition, enabled explicitly. Its observer runs under the Accessibility access that insertion already needs (§7.5); the shortcut remains available independently. |
+| Distribution | Direct distribution through GitHub releases built by the shared release workflow: a universal app as zip and dmg, ad-hoc signed and not notarized, like the owner's other apps. Local builds are signed with the machine's Apple Development identity so permission grants survive rebuilds. Developer ID signing and notarization are deferred until an account is supplied (§14). |
 | Runtime dependencies | Prefer Apple frameworks and a bundled local catalogue; introduce external packages only for a concrete unmet need. |
 | Interface language | English interface and search annotations initially; use localizable strings and keep the data format ready for additional locales. |
 | Storage | Local settings and versioned local files; no server or synchronization service. |
+| Project setup | The same as the owner's other Mac apps: a Swift package without an Xcode project, a pure `CharmsCore` library under test, shared build/release scripts, and the shared CI, release, and review workflows (§5, §14). |
 
 ### Included in the first usable release
 
@@ -92,7 +93,7 @@ Escape, clicking outside the panel, or pressing the shortcut again cancels the p
 5. On Enter, Charms validates the original field and exact tracked range, returns keyboard focus, and replaces the marker plus any verified source-side query prefix with the chosen string once.
 6. On Escape, the source is unchanged: the literal `::` and any prefix typed there before the picker took focus remain. Query text entered inside the picker is not written back to the source.
 
-The shortcut path inserts at the existing selection. The typed-trigger path replaces a tracked activation range. Keep those operations distinct even though they share the same picker. Seamless fast typing must be proved in the native spike; a listen-only observer alone does not guarantee it.
+The shortcut path inserts at the existing selection. The typed-trigger path replaces a tracked activation range. Keep those operations distinct even though they share the same picker. A listening observer cannot hold keys back, so the handoff in §7.6 reconciles what reached the source; the spike measured that method at key gaps down to 2 ms.
 
 ## 4. Interface specification
 
@@ -137,6 +138,8 @@ The diagram is structural; native font metrics determine final spacing.
 | Typing | Update the search query while preserving ordinary text editing and input-method composition. |
 | Left / right | Edit the query normally while the search field is focused; move between cells while navigating the grid. |
 | Down from search | Enter result navigation using the selected result, or select the first available item if the empty-query view has no selection. |
+| Right with the caret at the end of the query | Enter result navigation and move to the next result. Right does nothing at the end of a text field, so no editing behaviour is lost, and the second result is one key away instead of two. |
+| Up from search | Nothing; the search field is the top of the picker. |
 | Up / down in grid | Move by the visible column count; Up from the first row returns to search. Define and test partial final rows. |
 | Partial final rows | Treat the short trailing row as a real case, not an edge case: Right and Down clamp to the last cell instead of wrapping, Left from a row's first cell moves to the previous row's last cell, and a one-cell final row still answers Up and Down. Confirm the choice during the M3 interaction review (§15). |
 | Typing while navigating results | Return to the search field and edit the query using ordinary text input. |
@@ -145,23 +148,24 @@ The diagram is structural; native font metrics determine final spacing.
 | Command-C while the grid is focused | Copy the selected item; in the search field preserve ordinary selected-query copying. |
 | Escape | Cancel and restore focus. |
 | Command-D | Toggle the selected item's favourite state. |
-| Tab / Shift-Tab | Follow a predictable native focus order; never trap the user in the grid. |
+| Control-Return | Open the selected result's context menu: favourite, Move Left/Right for a favourite, skin-tone variants, Copy. This keeps every secondary action reachable without the mouse. |
+| Tab / Shift-Tab | Tab from search enters result navigation at the selected or first result; Tab or Shift-Tab while navigating returns to search. The footer is not a focus stop, and the user is never trapped in the grid. |
 
-Confirm these rules with a native interaction test. Enter can activate the selected result directly from search. Let the native field editor/input context handle composition first; inspect the search field's actual `NSTextInputClient.hasMarkedText()` state before treating Return/arrows/Escape as picker commands. A false marked-text result alone is not proof that every IME candidate operation is finished. Preserve ordinary selection, paste, Undo, and VoiceOver commands.
+Confirm these rules with a native interaction test. Enter can activate the selected result directly from search. The search field keeps keyboard focus for the whole session, so typing always edits the query and input-method composition always has a real text client; "navigating the grid" is a mode of the picker that decides what the arrow keys do, not a second first responder. Let the native field editor/input context handle composition first; inspect the search field's actual `NSTextInputClient.hasMarkedText()` state before treating Return/arrows/Escape as picker commands. A false marked-text result alone is not proof that every IME candidate operation is finished. Preserve ordinary selection, paste, Undo, and VoiceOver commands.
 
 ### 4.3 Favourites, recents, and variants
 
-- A context menu and Command-D add/remove favourites. Persist their explicit order; an initial simple move-left/move-right action is sufficient before drag reordering.
+- A context menu and Command-D add/remove favourites. Persist their explicit order; Move Left and Move Right in the cell's context menu are sufficient before drag reordering.
 - Removing the final favourite leaves an intentionally empty section, rather than restoring the seed set. Settings' separate **Reset favourites** action restores that seed set; clearing every favourite is a different action, so the control must say which of the two it performs.
 - Deduplicate recents by exact sequence and cap stored history, initially at 50 entries. Show only the compact leading portion in the empty-query grid.
 - Provide Clear Recents in settings. Retain favourites separately.
-- Store the exact selected emoji variant. A small secondary variant chooser may expose skin tones for entries with defined variants; do not manufacture combinations by appending arbitrary modifiers.
-- A preferred skin tone can choose a valid default variant, while explicitly saved favourite variants remain unchanged. Apply it only where the emoji data defines that modifier variant for the entry (`emoji-sequences.txt` for single-person modifier sequences, `emoji-zwj-sequences.txt` for ZWJ sequences); otherwise show the base entry.
+- Store the exact selected emoji variant. The cell's context menu lists the skin-tone variants of an entry that defines them; do not manufacture combinations by appending arbitrary modifiers.
+- A preferred skin tone can choose a valid default variant, while explicitly saved favourite variants remain unchanged. Apply it only where the emoji data defines that modifier variant for the entry, meaning the fully-qualified sequence is listed in the pinned `emoji-test.txt`, which covers the modifier and ZWJ sequences; otherwise show the base entry.
 - Use the system's native text/emoji rendering. Preview combining marks against a dotted-circle guide when necessary; the guide must never become part of the inserted string.
 
 ### 4.4 Menu bar, settings, and onboarding
 
-The menu-bar item must offer Open Charms, Settings, About, and Quit. Capture the external app/field at the status-item engagement boundary, before transient menu/key-focus changes, whether or not Charms becomes active. Revalidate that same target when Open Charms is chosen; never substitute an indefinitely cached last app. If no trustworthy external target exists, use browse/copy mode. The visible-picker toggle rule below takes precedence over starting another capture.
+The menu-bar item must offer Open Charms, the `::` switch once that feature has been enabled, Settings, About, and Quit. Capture the external app/field at the status-item engagement boundary, before transient menu/key-focus changes, whether or not Charms becomes active. Revalidate that same target when Open Charms is chosen; never substitute an indefinitely cached last app. If no trustworthy external target exists, use browse/copy mode. The visible-picker toggle rule below takes precedence over starting another capture.
 
 Browse/copy mode is the same picker with no insertion-capable target: search, favourites, and recents remain available. The footer says Copy; Enter or primary-click copies the selected item, as do the explicit Copy shortcuts. No source focus is required to copy, and focus is restored only while its original context is still current. This is a supported mode, not an error state.
 
@@ -172,48 +176,63 @@ While the shortcut recorder captures a combination, suspend Charms' global regis
 Keep settings to:
 
 - Keyboard shortcut and an optional per-app shortcut pass-through list, separate from typed-trigger exclusions (§5).
-- Enable typed `::` trigger, with an application exclusion list and a simple pause control.
+- Enable typed `::` trigger, with an application exclusion list. The same stored switch appears in the menu-bar menu as the pause control; there is no second "paused" state to explain or to get out of step.
 - Launch at login, off until the user opts in.
 - Preferred emoji skin tone.
 - Clear recents and reset favourites as separate explicit actions.
-- A compact Compatibility section for an app's insertion method, only if the native spike proves that per-app overrides are necessary.
+- A short list of applications that receive text through Paste instead of keyboard events (§7.3). It is empty by default: the spike found no application that needs it, but the Chromium- and Electron-based editors it exists for could not be tested on the development machine.
 - A secondary Export Diagnostics action for user-initiated, local, content-free support data (§9).
 
 On first launch, explain Accessibility access in plain language: Charms locates the typing field and returns characters there. Offer **Enable Insertion** and **Browse and Copy**. Request trust only in response to the enable action. Recheck capabilities on each invocation and when Settings/app activation changes (`NSApplication.didBecomeActiveNotification`); an accessory/nonactivating picker may never receive a normal app-activation transition when returning from System Settings. Explain recovery after revocation without continual text polling.
 
-Enabling `::` is separate and opt-in. Explain local keyboard observation and the short-lived explicit trigger/query transition. Use public listening-access APIs when needed; keep shortcut/menu-bar Browse and Copy available if access is denied. Disabling or pausing removes the observer and clears transient recognition state.
+Enabling `::` is separate and opt-in. Explain local keyboard observation and the short-lived explicit trigger/query transition. Keep shortcut/menu-bar Browse and Copy available when it is off or unavailable. Turning it off, from Settings or the menu, removes the observer and clears transient recognition state.
 
-Typed invocation requires trusted AX access for marker validation/replacement, listening authorization for its observer, and the capabilities required by the selected insertion backend. Refuse to enable it while those prerequisites are missing, state why in Settings, and remove the observer if they are revoked. Input Monitoring alone is insufficient. A field that later proves unsupported is left untouched and can use the explicit Copy path; this does not silently enable global observation in browse-only setup.
+Typed invocation requires trusted AX access, for its observer and for marker validation/replacement, and the capabilities required by the selected insertion backend. While insertion is not enabled the switch is disabled, Settings says "Enable Insertion to use the typed trigger" and offers that action; a user who started with Browse and Copy is never left at a dead end. Remove the observer if access is revoked. Should a supported system refuse key observation under Accessibility alone, request listening access with the public API at opt-in and say why; Input Monitoring alone is never sufficient. A field that later proves unsupported is left untouched and can use the explicit Copy path; this does not silently enable global observation in browse-only setup.
 
 The design does not require Screen Recording, microphone, contacts, or Full Disk Access. Validate the permission model per transport in M1. For Quartz posting, use `CGPreflightPostEventAccess()` and, only after Enable Insertion, `CGRequestPostEventAccess()` as applicable; verify actual prompt/denial behaviour on supported systems. Treat AX inspection, keyboard listening, and event posting as capabilities, without depending on private TCC service identifiers or assuming that one successful check authorizes every backend.
 
 ## 5. Native architecture
 
-Use one macOS application target, a unit-test target, and a small UI-test/harness target. Start with a conventional checked-in Xcode project and shared scheme. Record the supported Xcode/Swift toolchain in the README when the project is created; avoid an unnecessarily elaborate project generator or build system.
+Follow the setup of the owner's other Mac apps, so the shared scripts, workflows, and habits apply unchanged: a Swift package at the repository root (`swift-tools-version: 6.0`, Swift 5 language mode, `platforms: [.macOS(.v14)]`), no Xcode project, and no XCUITest target. `scripts/build-app.sh` assembles `dist/Charms.app` from `swift build`, the committed `Resources/Info.plist` (bundle identifier `ch.lkmc.Charms`), the generated icon, and the catalogue; `scripts/build.sh` and `scripts/release.sh` are thin entry points to the shared build and release engines.
 
-Suggested organization:
+All decisions that can be made without touching another application live in `CharmsCore`, which imports no AppKit and is covered by unit tests. The `Charms` executable holds only what needs the system: windows, the hot key, Accessibility calls, event posting.
 
 ```text
-Charms.xcodeproj/
-Charms/
-  App/                  AppDelegate, app lifecycle, status item, settings
-  HotKey/               registration, recorder, layout-aware key labels
-  Triggers/             optional :: observer, marker recognition, exclusions
-  Targeting/            focus capture, AX wrappers, target validation
-  Placement/            coordinate conversion, display choice, panel layout
-  Picker/               NSPanel controller, SwiftUI views, keyboard handling
-  Catalog/              records, catalogue loading, variant relationships
-  Search/               normalization, matching, deterministic ranking
-  Insertion/            transaction coordinator, Unicode/paste transports
-  Persistence/          settings, favourites, recents, migrations
-  Resources/            generated catalogue, assets, localized strings
-CharmsTests/
-CharmsUITests/
-Tools/                  reproducible catalogue generation and validation
-Data/                   source manifests, curated aliases, seed favourites
-docs/                   compatibility results, technical decisions, release guide
-THIRD_PARTY_NOTICES.md
+Package.swift
+Sources/
+  CharmsCore/           pure logic, no AppKit
+    Catalog/            entries, the catalogue file format, variant relationships
+    Search/             normalization, matching, deterministic ranking
+    Placement/          coordinate conversion, caret estimate, display choice, panel position
+    Session/            the session state table
+    Trigger/            marker recognition, handoff reconciliation, eligibility
+    Insertion/          backend choice, release gate, target check, clipboard guard
+    HotKey/             the shortcut model and its labels
+    Picker/             grid navigation, the content shown for a query
+    Persistence/        favourites and recents store
+    Settings/           the preferences document and default application lists
+    Diagnostics/        the content-free event log
+  Charms/               the app
+    App/                lifecycle, status item, settings, onboarding, about
+    HotKey/             registration, recorder, layout-aware key labels
+    Triggers/           the optional :: observer
+    Targeting/          focus capture, AX wrappers, target validation
+    Picker/             NSPanel controller, SwiftUI views, keyboard handling
+    Insertion/          Unicode-event and paste transports
+  CharmsCatalogBuilder/ catalogue generation from the pinned data (development only)
+  CharmsCatalogTool/    its command line: generate, check
+  CharmsHarness/        a small text host and driver for end-to-end checks
+Tests/
+  CharmsCoreTests/
+  CharmsCatalogBuilderTests/
+Resources/              Info.plist, the generated catalogue and its manifest
+Data/                   pinned Unicode and CLDR files, checksums, curated aliases
+scripts/                build, release, icon, data fetch, end-to-end check
+docs/                   compatibility results, review records
+AGENTS.md  CLAUDE.md  CICD.md  CHANGELOG.md  README.md  PRIVACY.md  THIRD_PARTY_NOTICES.md
 ```
+
+The generated catalogue is a committed, line-based text file, so a data update shows up as a reviewable diff, and it is copied into the app bundle by the build script rather than through a SwiftPM resource bundle.
 
 ### Responsibilities and boundaries
 
@@ -233,7 +252,7 @@ AppKit UI and lifecycle state belong on the main actor. Catalogue loading, index
 
 Use dependency injection at these boundaries to test geometry, search, session transitions, and insertion decisions without manipulating other apps.
 
-Name the platform mechanisms explicitly so the spike does not re-derive them: hot-key registration through the Carbon Hot Key API (`RegisterEventHotKey`) behind `HotKeyService`; listen-only event taps through `CGEventTapCreate` behind `TypedTriggerService`; focus/app-switch change detection through an accessibility observer (`AXObserver`, `kAXFocusedUIElementChangedNotification`) plus `NSWorkspace` frontmost-application notifications; and secure-input detection through `IsSecureEventInputEnabled()` before any source text is read or targeted. Confirm the current SDK signatures and availability during M0.
+Name the platform mechanisms explicitly so the spike does not re-derive them: hot-key registration through the Carbon Hot Key API (`RegisterEventHotKey`) behind `HotKeyService`; typed-trigger observation through `NSEvent.addGlobalMonitorForEvents(matching: .keyDown)` behind `TypedTriggerService`, which reports exactly the keys delivered to other applications and so provides the attribution §7.6 needs (a session event tap would also see the picker's own keys and would need Input Monitoring); focus/app-switch change detection through an accessibility observer (`AXObserver`, `kAXFocusedUIElementChangedNotification`) plus `NSWorkspace` frontmost-application notifications; and secure-input detection through `IsSecureEventInputEnabled()` before any source text is read or targeted. All of these were exercised against the macOS 27 SDK in the spike.
 
 Start with public system hot-key registration behind `HotKeyService` rather than a global keyboard hook for shortcut-only use. Prototype direct distribution without App Sandbox; keep any future sandbox/App Store feasibility assessment separate from the initial implementation.
 
@@ -258,11 +277,13 @@ On each invocation, create a new session containing:
 
 Keep this snapshot in memory only and discard it after the session ends. Shortcut/menu-bar invocation does not read selected text or document contents. Typed invocation may read only the marker, a bounded source-side query prefix during focus transfer, and a small boundary context. Neither path captures the window title or clipboard as part of ordinary invocation. Charms' own windows are never capture targets: when an invocation finds focus inside the settings window or another Charms surface, treat the session as having no trustworthy external target and open in browse/copy mode.
 
-Try the focused element's selected range and bounds-for-range AX parameter first. Some applications return unusable bounds for a zero-length caret. A bounded geometry-only adjacent-range probe is optional only when valid range boundaries, line continuity, and text direction can be established without reading source contents. Do not infer the caret generically from the preceding character's trailing edge: wraps, newlines, RTL runs, and grapheme boundaries make that unreliable. Otherwise fall back to field/window geometry, including empty fields.
+Try the focused element's selected range and bounds-for-range AX parameter first, and do not trust a zero-length caret rectangle by itself. Measured in TextEdit on macOS 27: the rectangle for a zero-length range is one line too high (the caret after a character at y 109 is reported at y 96, both 13 points tall), while rectangles for real characters are right. Other projects report the same for TextKit and that Chrome places the caret after a trailing newline on the previous line. A picker put "below" that rectangle covers the line being typed, which is the placement failure Charms exists to avoid.
+
+So also request the bounds of the single character before and after the caret. These are geometry-only reads; no text is fetched. Take the caret's line from an adjacent character only when that character demonstrably meets the caret horizontally: the next character begins at the caret's X, or the previous one ends there. That test fails by itself across a wrap, a newline, or a direction change, which is exactly when an adjacent character is on another line. When no adjacent character confirms the line, keep the reported rectangle and additionally keep one line below it clear, so the picker never covers the real caret in either case. Do not infer a caret from one adjacent edge without the reported rectangle to compare with. Reject implausible rectangles (§6.3) and otherwise fall back to field/window geometry, including empty fields.
 
 For a non-empty selection, use a reliable end-of-selection caret rectangle when supported, otherwise the selection/field bounds. Do not expand a failed geometry query into source-text reads or split a surrogate/grapheme to manufacture a caret.
 
-Bound AX messaging time per call with `AXUIElementSetMessagingTimeout` and the overall capture deadline, initially near 100 ms so the warm-present budget remains reachable; tune from measurements. Do not assume an undocumented default timeout. If a call is slow, use already captured reliable geometry, and ignore replies after cancellation or session replacement. A hung source app must not freeze the picker.
+Bound AX messaging time per call with `AXUIElementSetMessagingTimeout` and the overall capture deadline, initially near 100 ms so the warm-present budget remains reachable; a complete capture measured 7 to 10 ms in TextEdit. Do not assume an undocumented default timeout. If a call is slow, use already captured reliable geometry, and ignore replies after cancellation or session replacement. A hung source app must not freeze the picker.
 
 ### 6.2 Placement priority
 
@@ -282,14 +303,16 @@ When Accessibility is unavailable or yields no usable focused window, try a plac
 - Anchor on the primary display's full `frame`, not `visibleFrame`. Under those desktop-origin assumptions, a rectangle maps to `x = axRect.minX`, `y = primaryFrame.maxY - axRect.maxY`, preserving width/height. Apply `visibleFrame` only afterwards to clamp placement; otherwise menu-bar/Dock exclusions are counted twice.
 - Verify round trips with displays above, below, left, and right of primary, including negative coordinates. The correctly anchored global Y transform remains valid in those layouts; do not flip around each destination screen's height or assume all origins are nonnegative.
 - Use logical points for window layout. Do not apply a screen's backing scale twice.
-- Accept a zero-width caret with a meaningful height. Reject non-finite values, implausible geometry, stale offscreen rectangles, and bounds unrelated to any connected screen.
-- Prefer below the caret with a small gap, flip above if necessary, and clamp to the selected display's `visibleFrame` with an approximately 12-point margin.
+- Accept a zero-width caret with a meaningful height, subject to the line confirmation in §6.1. Reject non-finite values, implausible geometry (a height outside roughly 4 to 300 points is a placeholder or a whole field, not a caret), stale offscreen rectangles, rectangles outside the focused window, and bounds unrelated to any connected screen.
+- Prefer below the caret with a small gap, flip above if necessary, and clamp to the selected display's `visibleFrame` with an approximately 12-point margin. "Below" and "above" are measured from the region that must stay visible: the confirmed caret line, or the reported line plus its guard line.
 - Account for the menu bar, Dock, notches, small displays, and panel size changes. Keep the picker visible and avoid covering the insertion line when geometry allows.
 - Observe display changes with `NSApplication.didChangeScreenParametersNotification` or `CGDisplayRegisterReconfigurationCallback`, and Space changes separately with `NSWorkspace.activeSpaceDidChangeNotification`. On either, cancel unless the same session can be safely revalidated/repositioned. Display reconfiguration callbacks do not signal every Space change; never silently switch insertion targets.
 
 ### 6.4 Panel lifecycle
 
-Prototype an `NSPanel` constructed with the nonactivating-panel style, able to become key for search without becoming an ordinary main application window. Capture the origin before ordering it on screen.
+Use an `NSPanel` constructed with the nonactivating-panel style, able to become key for search without becoming an ordinary main application window. Capture the origin before ordering it on screen.
+
+Measured on macOS 27 with TextEdit as the source: a borderless `.nonactivatingPanel` at `.floating` level, with collection behaviour `.canJoinAllSpaces`, `.fullScreenAuxiliary`, and `.transient` and `hidesOnDeactivate = false`, became key about 10 ms after the hot key. The source stayed the frontmost application and no activation notification fired. After `orderOut`, the source's focused element was the captured one again within 3 ms, with no activation call. That is the starting configuration; full-screen and separate-Spaces behaviour still needs checking where the development machine allows it.
 
 Start with ordinary/nonactivating `NSPanel` behaviour and `.floating` where appropriate, together with a tested full-screen/Spaces policy. Record the lowest sufficient level for ordering and keyboard focus. Evaluate status/pop-up levels only if ordinary levels demonstrably fail; screen-saver level is not a normal character-picker solution. Window level alone does not grant access to another full-screen Space.
 
@@ -297,7 +320,7 @@ Prove candidate collection behaviours, such as `.canJoinAllSpaces` with `.fullSc
 
 Cancel when the user genuinely changes the originating app/window, the panel loses keyboard focus to an outside click, the target exits, or the session becomes invalid. Distinguish expected panel-focus transitions from genuine user target changes so opening the picker does not immediately cancel itself.
 
-Restore source keyboard focus only while the original process, window, and field are still current. First test whether resigning the nonactivating panel restores the source naturally; use guarded `NSRunningApplication.activate(options:)`, AX window raise/focus, or selection restoration only where the spike proves necessary and supported. None of these is permission to reactivate an app the user deliberately left or to restore a stale selection.
+Restore source keyboard focus only while the original process, window, and field are still current. Resigning the nonactivating panel restores the source naturally (measured above), so the shortcut and typed paths make no activation call. Use guarded `NSRunningApplication.activate(options:)`, AX window raise/focus, or selection restoration only where a path proves to need it, such as invocation from the menu bar. None of these is permission to reactivate an app the user deliberately left or to restore a stale selection.
 
 ## 7. Insertion and session correctness
 
@@ -339,22 +362,20 @@ If the user switches to a different field/window while the picker is open, cance
 
 Freeze the action, selected entry, query generation, and complete output. Wait for invocation/selection modifiers and the activating key or mouse button to be released, initially for up to one second. Query current key state (for example `CGEventSource.keyState(.combinedSessionState, key:)`) in addition to local key-up tracking; combined-session state is not exclusively hardware provenance. Never synthesize releases for held physical keys. If the deadline expires, discard the pending commit, keep the picker browsing while its context remains valid, and require a fresh activation. Releasing keys later must not dispatch automatically.
 
-Then dismiss/resign the panel, establish that the same source app and field are effective receivers, and revalidate immediately before dispatch. Prefer tested PID-addressed Quartz posting (`event.postToPid(pid)`). PID targeting still does not identify the correct field. Do not silently fall back to global posting. If the selected backend's public capability preflight fails, offer explicit Copy without attempting a write.
+Then dismiss/resign the panel, establish that the same source app and field are effective receivers, and revalidate immediately before dispatch. Post with PID-addressed Quartz events (`event.postToPid(pid)`). PID targeting still does not identify the correct field. Do not silently fall back to global posting. If the selected backend's public capability preflight fails, offer explicit Copy without attempting a write.
 
-The spike compares the first two transports below and may evaluate the third as a narrowly scoped candidate, using the same complete-string fixtures:
+The spike compared the transports with the same complete-string fixtures. The decision:
 
-1. **Unicode keyboard events:** send complete UTF-16 output with correctly paired events and clean flags. Measure actual supported string lengths; do not assume an undocumented limit or split surrogate pairs/emoji components arbitrarily. Include the longest catalogue sequences, tag flags, ZWJ emoji, and selection replacement in the fixtures.
-2. **Plain-text paste:** an explicit compatibility backend. Prove Paste dispatch for the effective Command-modified keyboard layout, including Dvorak–QWERTY Command layouts, or a validated accessible Paste action. Neither a fixed ANSI V code nor the key that types unmodified `v` is universally sufficient.
+1. **Unicode keyboard events are the default.** Send the complete UTF-16 output as one key-down and one key-up carrying the string, with cleared flags and virtual key 0. Measured in TextEdit on macOS 27, through `postToPid` and through the HID tap alike: every fixture arrived exactly (arrow, non-BMP emoji, skin tone, ZWJ sequence, flag, keycap, variation-selector emoji, tag-sequence flag); strings of 21, 40, and 64 UTF-16 units arrived whole, so the 20-unit limit other projects work around did not appear; a selection was replaced; and one Undo removed exactly the insertion. No delay was needed between `orderOut` and posting. No catalogue entry comes near that length, so one event carries any of them; longer text is split between characters only, never inside a surrogate pair, a joined sequence, or a base with its marks. The posting process must outlive delivery: events from a process that exits immediately were dropped, which matters to test drivers, not to the app.
+2. **Plain-text paste is an explicit per-app backend**, chosen ahead of time from the user's list (§4.4), never a retry. Send Paste through the effective Command-modified layout: find the key that produces `v` with Command held under the current input source, which also covers Dvorak-QWERTY Command layouts. A fixed ANSI V code is wrong: on the development machine's Swiss German layout the positions ANSI calls Y and Z are swapped, and a posted Command with position 6 did not undo.
 
-Prefer the Unicode path where it behaves like ordinary typing and preserves the clipboard. Apple documents that some frameworks ignore an event's supplied Unicode string, so successful event dispatch is not proof of insertion.
-
-Record proven event granularity and editing semantics in the spike. Prefer one complete-string operation where supported; do not prescribe unmatched key events or suppression of intervening key-ups. The acceptance criterion is that one ordinary Undo restores the pre-insertion state in one step. If a transport cannot preserve a supported sequence or meet the Undo criterion, use a different prevalidated backend or Copy for that case, without dispatch-then-retry.
+Apple documents that some frameworks ignore an event's supplied Unicode string, so successful event dispatch is not proof of insertion, and the result of a session is `dispatched`, not "inserted". The acceptance criterion remains that one ordinary Undo restores the pre-insertion state in one step. If a transport cannot preserve a supported sequence or meet the Undo criterion in an application, that application belongs on the paste list or uses Copy, without dispatch-then-retry.
 
 Do not automatically paste after an unconfirmed Unicode dispatch: the original event may have succeeded and a retry could duplicate the character. Choose a validated backend ahead of time, using an explicit per-app override only when needed. Unsupported apps retain the Copy action.
 
 Do not set a text field's complete AX value to insert one character; that risks replacing unrelated content, losing formatting, and bypassing normal editing/Undo behaviour.
 
-3. **AX selected-text replacement (optional spike candidate):** query whether `kAXSelectedTextAttribute` is settable and test replacing only the current selection on the captured element. It may still require focus, can bypass script-controlled input events, and may differ in Undo or report success without an effect. Retain all target/focus checks and adopt it only in app/field combinations proven by the instrumented harness and compatibility matrix. Do not add routine document read-back solely to claim delivery; any production verification needing source content requires an explicit, bounded privacy-policy revision.
+3. **AX selected-text replacement is not used.** Setting `kAXSelectedTextAttribute` can bypass script-controlled input events, may differ in Undo, and may report success without an effect; with keyboard events working there is no case that needs it. Do not add routine document read-back solely to claim delivery; any production verification needing source content requires an explicit, bounded privacy-policy revision.
 
 Use distinct internal results such as `cancelled`, `copied`, `dispatched`, and `failedBeforeDispatch`. Do not report a verified insertion merely because an event was posted. Update recents after a committed dispatch or explicit copy, never after hovering or cancellation.
 
@@ -365,7 +386,7 @@ Explicit Copy intentionally replaces the clipboard. The normal Unicode-event bac
 For the optional paste backend:
 
 - Capture restorable clipboard representations in memory immediately before taking ownership. Preserve multiple items/types where safely supported, rather than saving only a string.
-- Snapshotting is a programmatic pasteboard read and can encounter OS privacy controls, prompts, or denial. Use public capability/access-behaviour APIs only where available, with deployment-version guards, and test every supported OS. If silent safe snapshotting is unavailable, do not trigger repetitive permission prompts on insertion or promise preservation; use the explicit compatibility/Copy path.
+- Snapshotting is a programmatic pasteboard read and can encounter OS privacy controls, prompts, or denial. Where `NSPasteboard.accessBehavior` exists (macOS 15.4 and later), snapshot only when it reports that reading is always allowed; when it would ask or deny, skip the snapshot rather than prompt on every insertion, leave the chosen character on the clipboard, and say so next to the paste list. Never promise preservation that cannot be delivered.
 - If contents cannot be safely snapshotted/restored, do not promise preservation; use an explicit copy/paste choice instead of silently discarding data.
 - Write only the selected plain-text Unicode string and remember the resulting pasteboard `changeCount`.
 - Restore previous contents only while the pasteboard `changeCount` still equals the value recorded immediately after this transaction's write, and only once per transaction; any later count means a newer copy exists. Never overwrite a subsequent user copy.
@@ -380,32 +401,34 @@ The release gate is predictable behaviour with a documented compatibility method
 
 Treat typed invocation as a separate input adapter, not a second picker or an unrestricted text expander.
 
-- Install a listen-only keyboard observer only while the user has opted in, is not paused/excluded, and the global AX/listening/backend prerequisites in §4.4 hold. Drop it and clear transient state when a required capability is lost. Keep event callbacks fast; never make blocking AX calls in them.
+- Install the observer, an `NSEvent` global key-down monitor, only while the user has opted in and the prerequisites in §4.4 hold. Apple documents that key events may be monitored when the process is trusted for accessibility, so no further permission is requested. Drop it and clear transient state when the switch is turned off or a required capability is lost. Keep event callbacks fast; never make blocking AX calls in them.
 - Recognize the produced colon characters using the active input context, not hard-coded U.S. key positions. Confirm actual committed `::` text and any exactly tracked transition prefix in the source before enabling insertion.
 - The event notification may precede the source app updating its AX selection. Use a bounded asynchronous reconciliation step; if the marker cannot be confirmed, leave the source untouched and do not open automatically.
 - Before a trigger candidate, keep only minimal recognition state, such as a first-colon candidate, boundary state, source identity, and timestamp. After `::`, a bounded transient query-prefix buffer is allowed only for the handoff below. Do not buffer unrelated typing or log either form of state.
-- Reset on app/focus/caret/input-source changes, mouse-down navigation (including movement within one field), nonmatching candidate-editing keys such as Command-V, and an initial one-second inter-colon timeout. Pause/cancel before dispatch on sleep (`NSWorkspace.willSleepNotification`), inactive login session (`NSWorkspace.sessionDidResignActiveNotification`), verified screen lock, secure input, permission loss, or tap interruption. The public session notification is not proof that every screen-lock transition is covered: establish a supported lock-detection strategy in the spike and do not present an undocumented distributed-notification string as a guaranteed API. Never dispatch while the user session is unverified/inactive.
+- Reset on app/focus/caret/input-source changes, mouse-down navigation (including movement within one field), nonmatching candidate-editing keys such as Command-V, and an initial one-second inter-colon timeout. Pause/cancel before dispatch on sleep (`NSWorkspace.willSleepNotification`), inactive login session (`NSWorkspace.sessionDidResignActiveNotification`), verified screen lock, secure input, permission loss, or interruption of the observer. The public session notification is not proof that every screen-lock transition is covered: establish a supported lock-detection strategy in the spike and do not present an undocumented distributed-notification string as a guaranteed API. Never dispatch while the user session is unverified/inactive.
 - Suspend new trigger recognition through the entire active invocation, including capture, transition, visible browsing, validation, and insertion handoff, so query text cannot trigger a second session.
-- Do not infer a typed marker from a paste, dictation, or an unproven synthetic/composed input path. The public cross-app AX contract does not provide a universal marked-text query; target-side composition must be established for tested input contexts by supported mechanisms and committed-text proof. Disable automatic recognition when that cannot be established; shortcut use remains available.
+- Do not infer a typed marker from a paste, dictation, or an unproven synthetic/composed input path. The public cross-app AX contract does not provide a universal marked-text query, so recognition is suspended whenever the selected input source is an input method rather than a plain keyboard layout; there, key presses do not say what text was committed. Shortcut use remains available.
 - Initially require start-of-field or preceding whitespace, verified with minimal context, so `std::`, `arr[::2]`, and `[::1]` do not meet the grammar. An eligible literal starting with `::` remains inherently ambiguous: the observer cannot know whether future characters will form IPv6, CSS, or a query. Do not promise future-text classification; preserve numeric/code-point queries such as `::2192` and `::1F44D`.
-- Ship a conservative, editable exclusion list for built-in shortcode apps, code editors/terminals, password managers, and remote/virtualized input. Record bundle IDs in data. Exclude browser address/search chrome only where a tested per-browser AX capability distinguishes it from ordinary page inputs; role/subrole is not a universal discriminator. Otherwise document the limitation and offer a browser-wide exclusion. Do not inspect URLs/page contents just to classify the marker.
+- Ship a conservative, editable exclusion list for built-in shortcode apps, code editors/terminals, password managers, and remote/virtualized input. Record bundle IDs in data; an entry ending in `.*` covers a vendor's whole family. Exclude browser address/search chrome only where a tested per-browser AX capability distinguishes it from ordinary page inputs; role/subrole is not a universal discriminator. Otherwise document the limitation and offer a browser-wide exclusion. Do not inspect URLs/page contents just to classify the marker.
 - Start with application-level exclusions. Per-website exclusions can follow later; do not inspect browsing URLs or page content merely to detect the marker.
-- Pause/disable must stop observation promptly. Recover an interrupted tap only while the option is still enabled and permissions/eligibility remain valid.
-- Event source fields such as `kCGEventSourceStateID`/`kCGEventSourceUnixProcessID` are evidence, not authentication of hardware origin or a receiving-field identifier. Ignore events tagged by Charms itself, verify committed source text and local picker input separately, and record the limitations in M1b. Do not claim that a tap alone can prove all provenance or delivery.
-- Once eligible `::` is recognized it opens the picker, including where literal text could share that prefix. Exclusions/pause and the narrow boundary reduce accidental activation. Do not close and automatically replay query text merely because it starts with whitespace, a colon, or a digit: that would alter cancellation semantics, block valid queries, and require a separate validated recovery transaction. Keep Escape non-writing as specified in section 3; test the usability cost of this choice explicitly.
+- Turning the switch off must stop observation promptly. Reinstall an interrupted observer only while the option is still enabled and permissions/eligibility remain valid.
+- Event source fields such as `kCGEventSourceStateID`/`kCGEventSourceUnixProcessID` are evidence, not authentication of hardware origin or a receiving-field identifier. Charms' own insertions are posted to one process and were not seen by the global monitor in the spike; still verify committed source text and local picker input separately. Do not claim that an observer alone can prove all provenance or delivery.
+- Once eligible `::` is recognized it opens the picker, including where literal text could share that prefix. Exclusions, the off switch, and the narrow boundary reduce accidental activation. Do not close and automatically replay query text merely because it starts with whitespace, a colon, or a digit: that would alter cancellation semantics, block valid queries, and require a separate validated recovery transaction. Keep Escape non-writing as specified in section 3; test the usability cost of this choice explicitly.
 
 ### 7.6 Replace the marker without guessing
 
 For typed invocation, derive and retain the marker's AX range using the source's range units, normally UTF-16. Text before it may contain multi-scalar emoji; Swift character counts must not be used as AX offsets.
 
-**Fast-typing handoff:** a listen-only event tap cannot stop letters from reaching the source while asynchronous AX work and panel presentation occur. Implement an explicit transition state:
+**Fast-typing handoff:** a listening observer cannot stop letters from reaching the source while asynchronous AX work and panel presentation occur. Implement an explicit transition state, using the method the spike measured:
 
-- Track a bounded sequence of candidate query events with ordering evidence, and independently record text actually received by the local field editor. Use source AX reconciliation and focus observations to prove the split; a global tap callback does not identify the receiving field. Document the concrete attribution method and its failure cases in M1b rather than inventing a guaranteed API.
-- Reconcile the committed source substring and caret against those candidate events during focus transfer. Seed the query from the verified source prefix and append the panel-received remainder in proven order; do not duplicate or drop characters.
+- **Attribution by delivery channel.** A global monitor reports a key only when it was delivered to another application; a key delivered to the picker arrives through the picker's own event stream instead. Each key therefore appears in exactly one of the two, in order. Measured with `::arrow` typed at 2 ms gaps: the source received `::arro`, the picker received `w`, and the two streams said exactly that. Keys reported by the global monitor after the marker form the source-side prefix; the picker's field holds the rest; the query is the prefix followed by the field's text.
+- **Position by read-back, never by arithmetic.** The monitor fires before the source has applied the key, so the caret read at that moment does not yet include it. Measured at 15 ms gaps: a marker position computed from the caret at event time was off by one and would have removed a neighbouring space. So read the text before the caret back from the source (bounded to the marker, the prefix, and one boundary character) until it equals `::` plus the prefix, and take the range from that reading. Until it matches, the source is still catching up; if it never matches within the deadline, insertion is not offered.
+- The picker opens only once `::` is confirmed at an allowed boundary. An observed key says which application received a key, not which field or what text resulted (autocorrection and input methods can change it), which is why the comparison is against the source's text and is exact, scalar for scalar.
+- A deletion, arrow, Return, or shortcut that reaches the source after the marker makes its text unpredictable; whitespace after the marker means the colons were ordinary text. Either ends the handoff without touching the source.
 - Freeze the exact replacement range as marker plus verified source-side prefix once handoff settles. Keep the prefix in the source until insertion is committed, so cancellation requires no destructive rollback.
 - Bound transition duration and buffered input, initially targeting at most 250 ms and 64 UTF-16 units, with sequence-safe limits. Tune from measurements. Only this activation transition may collect a query prefix; there is no general keystroke history.
 - Enable insertion only after source range and input order are proved. If Enter reaches the picker during handoff/search, retain one pending activation tied to its exact query/input generation. Resolve the selected entry for that frozen query after reconciliation, then apply the same release wait and final validation; never use a selection from a later query. Editing input or an unprovable order cancels the pending activation. Enter received by the source before the panel is key remains ordinary source typing: abort without deleting/replaying it. If proof times out, preserve the source and offer Copy or cancel.
-- This is a required feasibility check for uninterrupted `::arrow` typing at normal and high speed. If reliable reconciliation is not achievable with the selected public APIs, record that limitation and revise the trigger design explicitly before release; do not quietly assume that users will pause after `::`.
+- The spike passed this feasibility check for uninterrupted `::arrow` typing at normal and high speed in TextEdit. Where reconciliation proves unreliable in an application, the source is left untouched there and the application belongs on the exclusion list; do not quietly assume that users will pause after `::`.
 
 This policy retains listen-only recognition. Suppressing/buffering arbitrary global input would need a separate design for lossless replay and cancellation and is not an implicit fallback.
 
@@ -413,7 +436,7 @@ On commit:
 
 1. Verify the same process, field, window, expected selection, literal marker, and tracked source-side prefix still exist.
 2. Ensure the source supports safely selecting the exact frozen activation range. Select only that marker/prefix; never send blind Backspaces.
-3. Perform the panel-to-source focus handoff and revalidate the expected activation selection. Some apps apply a selection only to a focused element, so establish per app in the spike whether step 2 must happen after the handoff.
+3. Perform the panel-to-source focus handoff first, then select the range and read the selection back: some apps apply a selection only to a focused element, and in TextEdit setting `kAXSelectedTextRange` after `orderOut` worked. A selection that does not read back as requested stops the commit before dispatch.
 4. Dispatch the chosen output once using the already selected insertion transport.
 5. If selection preparation fails before dispatch, preserve the activation text and offer Copy. If preparation changed the selection but dispatch cannot start, restore the previous caret only if the source remains unchanged and current.
 
@@ -423,14 +446,14 @@ Escape and explicit Copy leave source activation text intact. Choosing a symbol 
 
 ### 8.1 Data sources and coverage
 
-Build a bundled catalogue from pinned UCD, official emoji data (including `emoji-test.txt`, sequences and ZWJ data), and CLDR English annotations. Load both base and derived CLDR annotation data; base annotations are not restricted to single-scalar characters. Map annotation keys to validated fully-qualified emoji identities using Unicode's presentation/qualification rules, rather than assuming all keys match raw output strings or all omit the same selector. Resolve every included recommended sequence to a name or an explicit manifest exclusion. Add reviewed familiar aliases such as `cmd`, `option`, `tick`, `->`, and `not equal`.
+Build a bundled catalogue from pinned releases: Unicode 18.0.0 (the Unicode Character Database and Emoji 18.0's `emoji-test.txt`, which lists every recommended sequence, including modifier and ZWJ sequences, with its qualification) and CLDR 49 English annotations. The files and their checksums are committed under `Data/`, so generation needs no network. Load both base and derived CLDR annotation data; base annotations are not restricted to single-scalar characters. Map annotation keys to validated fully-qualified emoji identities using Unicode's presentation/qualification rules, rather than assuming all keys match raw output strings or all omit the same selector. Resolve every included recommended sequence to a name or an explicit manifest exclusion. Add reviewed familiar aliases such as `cmd`, `option`, `tick`, `check`, `arrow`, `nbsp`, `->`, and `not equal`. They carry more weight than first assumed: CLDR 49 annotates all emoji but only 367 other symbols, so symbols are found through their Unicode names and these aliases, and the order of an alias's targets decides what a bare `arrow` shows first.
 
 - Include assigned graphic characters and useful whitespace/punctuation, plus complete recommended emoji sequences in their fully-qualified form. Never insert the minimally-qualified or unqualified forms that `emoji-test.txt` also lists. The recommended set includes emoji tag sequences, the subdivision flags such as 🏴󠁧󠁢󠁳󠁣󠁴󠁿 (U+1F3F4 followed by tag characters); preserve them like the other sequence types in 8.2.
 - Keep large algorithmically named repertoires available through literal and explicit code-point lookup without eagerly materializing every long name/token on the heap. An initial compact range-based representation can omit those names from ordinary word-search indexing; document that search-coverage distinction and measured entry/byte counts in the manifest. Do not silently discard characters or add an owner-approval blocker before M2 can measure the catalogue.
 - Exclude unassigned scalars, surrogate code points, noncharacters, private-use glyphs, and standalone control/format/emoji components from normal suggestions. Document the exact coverage in the generator manifest.
 - Give whitespace and combining characters visible names and suitable previews so the user understands what they will insert.
 - Correctly expand source ranges and algorithmic names; do not expose Unicode data placeholders as user-facing names.
-- Pin data releases/checksums and retain per-emoji version metadata. Establish an OS/rendering support matrix so a newer OS can expose more supported emoji without restricting all users to the oldest system. A single-glyph shaping check alone is not proof that a sequence is supported; use version evidence and representative rendering fixtures, treating runtime shaping checks as supplementary heuristics.
+- Pin data releases/checksums and retain per-emoji version metadata. The data is newer than any shipping system: macOS 27.0.1 renders Emoji 17, and the supported floor, macOS 14, renders 15.0 or 15.1. Decide support on the running system instead of from a hand-kept version table: lay each emoji out with CoreText once and accept it only if it shapes to a single glyph from a real font. An unsupported sequence falls apart into several glyphs and an unknown character lands in the last-resort font; asking a font whether it has glyphs for the code points is not enough, since the parts of an unsupported sequence all exist. Check the result against version evidence: on a given system, entries up to its emoji version pass and newer ones fail.
 - Handle known unsupported/missing glyphs deliberately. Hide unsupported emoji variants by default where support is known; retain understandable labels and explicit copy behaviour for entries that cannot be previewed reliably.
 
 The catalogue generator is a development/build tool. The released app performs no data downloads or remote lookups.
@@ -457,7 +480,7 @@ Start with a lightweight in-memory index rather than a database or external sear
 4. All-token substring matches.
 5. Bounded fuzzy matching for genuine spelling variation, if it improves the fixtures.
 
-Favourites and recency can break ties within a relevance tier; they must not push an unrelated frequent item above an exact query. Keep deterministic ordering for ties. Preserve punctuation aliases such as `->` and `!=` during tokenization. Apart from such aliases, split names and keywords on whitespace and hyphens, so `up right` matches `up-right arrow`; a token-prefix match means every query token is a prefix of some entry token. Match the literal and code-point tiers against the raw query, before case or accent folding. Code points are hexadecimal; accept `U+` in either case, and several code points separated by spaces or commas as one sequence.
+Favourites and recency break ties within a relevance tier; they must not push an unrelated frequent item above an exact query. Remaining ties fall back to the entry's rank (curated, common, symbol, script, rare) and then to catalogue order, so results never depend on hash order. Preserve punctuation aliases such as `->` and `!=` during tokenization. Apart from such aliases, split names and keywords on whitespace and hyphens, so `up right` matches `up-right arrow`; a token-prefix match means every query token is a prefix of some entry token. Match the literal and code-point tiers against the raw query, before case or accent folding. Code points are hexadecimal; accept `U+` in either case, and several code points separated by spaces or commas as one sequence.
 
 Support case-insensitive and accent-insensitive search keys, multiple query words, literal pasted symbols, and `U+2192`/`2192` notation. Many numbers and hex-letter words are valid code points — `face` is U+FACE (a CJK compatibility ideograph), `cafe` a Hangul syllable, and `100` LATIN CAPITAL LETTER A WITH MACRON — so treat a bare hexadecimal query such as `2192` as an additional interpretation ranked below exact name and alias matches, never in tier one; `2764` and `1F44D` still find ❤ and 👍 when no name or alias matches. A `U+`-prefixed query always parses as code points and keeps its tier-one rank. Multi-code-point lookup must parse an entire sequence instead of accepting only its first scalar. Reject invalid scalars gracefully.
 
@@ -471,12 +494,12 @@ Retain required Unicode/CLDR and any package notices in `THIRD_PARTY_NOTICES.md`
 
 ## 9. Local persistence and privacy
 
-- Store simple preferences in `UserDefaults`, including shortcut, typed-trigger opt-in/exclusions, preferred skin tone, launch-at-login preference, and a persisted pause state: pause is an explicit choice that survives relaunch and is shown in settings and the menu, so observation is never resumed silently.
+- Store simple preferences in `UserDefaults` as one small document that tolerates missing or unreadable fields: shortcut, typed-trigger switch and exclusions, paste and pass-through lists, and preferred skin tone. The typed-trigger switch is the pause control; being stored, it survives relaunch and is shown in settings and the menu, so observation is never resumed silently. Launch at login is read from the system's registration state rather than stored twice.
 - Store favourites, their order, and recents in a schema-versioned Codable file under the app's Application Support directory.
 - Write atomically and serialize updates. Preserve a recoverable previous file when migrating; do not silently erase user choices on decode failure.
 - Migrate entries using stable IDs and exact sequences so catalogue updates do not lose favourites. Preserve unresolved favourites for future recovery rather than deleting them automatically.
 - Do not persist search queries, typed-trigger observations or marker context, AX snapshots, selected document text, window titles, or clipboard contents.
-- Keep runtime diagnostics limited to timings, error categories, transport choice, and coarse placement/fallback reasons. Avoid typed text and raw user content. Add an opt-in "Export Diagnostics" action in Settings that writes the same categories to a local file the user can attach to a bug report; never transmit them and never include text content.
+- Keep runtime diagnostics limited to timings, error categories, transport choice, coarse placement/fallback reasons, and the bundle identifier of the application concerned. The log has no free-text field, so typed text and raw user content cannot enter it. Add an opt-in "Export Diagnostics" action in Settings that writes the same categories to a local file the user can attach to a bug report; never transmit them and never include text content.
 - No telemetry or network access is needed for ordinary operation.
 - With typed recognition disabled, no global keyboard observer is installed. With it enabled, observation is local and ephemeral, limited to marker recognition and the bounded explicit-query handoff; unrelated typing is never retained.
 - Use the system login-item API (`SMAppService.mainApp`) when the user opts in; reflect actual registration state, including a disabled or approval-required login item (`SMAppService.status == .requiresApproval`). In the approval-required state, provide a direct affordance to open System Settings (`SMAppService.openSystemSettingsLoginItems()`) with clear recovery instructions.
@@ -493,13 +516,14 @@ Retain required Unicode/CLDR and any package notices in `THIRD_PARTY_NOTICES.md`
 
 ## 11. Delivery milestones
 
-Implement in small reviewable commits. The native risk spike is a gate for the broader implementation, rather than a demo that is discarded before its conclusions are recorded.
+Implement in small reviewable commits. The native risk spike was the gate for the broader implementation; it ran on 10 November 2026, and its conclusions are recorded in §15 and in the sections they settle. The milestones below keep their order; the M1 and M1b items describe what the spike established and what the implementation must then show in the real app.
 
 ### M0 — Bootstrap the project
 
-- [ ] Create the app target, shared scheme, unit tests, and a tiny native text-input harness.
+- [ ] Create the Swift package with the `CharmsCore` library, the `Charms` executable, unit tests, and a tiny native text-input harness.
 - [ ] Set `Info.plist` `LSUIElement` and verify the accessory activation policy, including how Settings/About are presented and how the app returns to accessory state.
-- [ ] Select and document the deployment target, toolchain, stable bundle identifier, and development signing approach.
+- [ ] Document the deployment target (macOS 14), toolchain, bundle identifier (`ch.lkmc.Charms`), and development signing approach (§14).
+- [ ] Add the shared scripts and workflows: `scripts/build.sh`, `scripts/build-app.sh`, `scripts/release.sh`, CI, release, automated review, and the `AGENTS.md`/`CLAUDE.md`/`CICD.md`/`CHANGELOG.md` set.
 - [ ] Add README build/run instructions and a focused `.gitignore`; do not commit local IDE state or signing secrets.
 - [ ] Create a menu-bar accessory app with Settings and Quit, with single-instance enforcement.
 
@@ -547,7 +571,7 @@ Implement in small reviewable commits. The native risk spike is a gate for the b
 
 - [ ] Add versioned persistence, recovery/migration, and optional launch at login.
 - [ ] Add Accessibility onboarding and browse/copy mode.
-- [ ] Implement opt-in `::` observation, permission flow, pause/exclusions, boundary checks, bounded fast-typing handoff, and activation replacement proven in M1b.
+- [ ] Implement opt-in `::` observation, permission flow, the off switch and exclusions, boundary checks, bounded fast-typing handoff, and activation replacement proven in M1b.
 - [ ] Add only the compatibility overrides demonstrated necessary by M1; document the clipboard policy in user-facing terms.
 - [ ] Handle permission revocation, app termination, display changes, sleep/wake, and stale AX elements.
 
@@ -557,8 +581,8 @@ Implement in small reviewable commits. The native risk spike is a gate for the b
 
 - [ ] Complete the real-app/display compatibility matrix and review unresolved limitations.
 - [ ] Measure performance using release builds and record the hardware/OS used.
-- [ ] Produce a signed/notarized app and distribution archive, using an appropriate Developer ID identity supplied through local/CI signing configuration.
-- [ ] Verify a downloaded build on a clean account from a stable, non-translocated installation, normally `/Applications`, including launch, permission onboarding, login-item registration/approval, duplicate open, and quitting.
+- [ ] Produce the universal app and its zip and dmg through the tag-triggered release workflow, ad-hoc signed. Add Developer ID signing and notarization only once an account is supplied.
+- [ ] Verify a downloaded build from a stable, non-translocated installation, normally `/Applications`, including the Gatekeeper step an un-notarized download needs, launch, permission onboarding, login-item registration/approval, duplicate open, and quitting.
 - [ ] Publish build instructions, compatibility notes, release notes, and checksums with the release, together with the documentation §14 already requires: uninstalling and disabling launch at login, privacy behaviour, current compatibility, and how to recover insertion permission.
 
 **Exit:** a fresh user can install, grant only needed access, invoke Charms, insert symbols/emoji in documented contexts, and remove or quit it normally.
@@ -582,7 +606,7 @@ Focus automated tests on decisions with meaningful independent expected outcomes
 - Persistence: first-run seeding, intentionally empty favourites, ordering, migration, unknown IDs, interrupted writes, and corrupt-file recovery.
 - Catalogue and search coverage: tag-sequence flags round-trip exactly; keyword-only matches such as `happy`, official-name matches such as `rightwards arrow`, hyphenated names queried as `up right`, and single ASCII letters behave as specified; the example queries in section 3 return independently chosen top results.
 
-Use a native harness for known AX fields and editing/Undo behaviour. Keep UI tests focused on critical flows. Hosted CI can build and exercise pure tests; cross-app TCC, VoiceOver, lock, and real display/Space scenarios require an interactive macOS session on local hardware or an appropriate self-hosted runner. Do not require infrastructure merely to review documentation.
+Use the native harness (`CharmsHarness`: a window with known text fields that can report its contents, plus a driver that posts keys) for known AX fields and editing/Undo behaviour, and a script that runs the critical flows end to end against the built app. There is no XCUITest target. Hosted CI builds and exercises the pure tests; cross-app TCC, VoiceOver, lock, and real display/Space scenarios require an interactive macOS session on local hardware. A machine with one display can still cover the multi-display rows: a virtual display created with the system's private `CGVirtualDisplay` classes behaved as a real second screen at negative coordinates on macOS 27. That is development tooling only and never ships in the app. Do not require infrastructure merely to review documentation.
 
 ### 12.2 Manual acceptance matrix
 
@@ -612,7 +636,7 @@ Use a native harness for known AX fields and editing/Undo behaviour. Keep UI tes
 | P0 | Type `::` and switch apps during asynchronous capture/handoff | No late popup or insertion appears in the new app; returning does not revive the old session. |
 | P0 | Press the shortcut during a first-colon or `::` candidate | One shortcut session opens, pending trigger work is invalidated, and literal source text remains intact. |
 | P0 | Typed invocation in native rich text, browser contenteditable, and a custom-rendered editor | Exact range replacement works only where proven; insufficient AX support preserves source text and offers shortcut/Copy without guessing offsets. |
-| P0 | Typed trigger disabled/paused/excluded, secure, or missing AX/listening/required backend access | No automatic popup or processing. Disabled/paused or globally unauthorized observation is removed; source activation text stays intact. Shortcut/menu Browse and Copy remains usable. |
+| P0 | Typed trigger switched off, excluded, secure, an input method active, or missing AX/required backend access | No automatic popup or processing. Switched-off or globally unauthorized observation is removed; source activation text stays intact. Shortcut/menu Browse and Copy remains usable. |
 | P0 | Held Shift/Command/Option during selection | Never synthesize physical releases or dispatch while held. Release within the one-second bound permits one revalidated action; expiry clears the action and returns to browsing while valid. A later release alone never inserts. |
 | P1 | Display is unplugged, rearranged, or changes resolution | Session cancels/revalidates safely and the next invocation chooses the new correct display. |
 | P1 | Accessibility not granted; source window on B and mouse on A | Available, validated window-list metadata places browse/copy on B without new permissions; otherwise use the documented mouse/primary fallback and never imply an insertion target exists. |
@@ -637,7 +661,9 @@ Record app version, macOS version, input type, display configuration, placement 
 - An Electron editor or messaging application, including VS Code if it is part of the user's workflow.
 - Terminal and one remote-desktop/virtualized input context as explicit compatibility probes, not assumed supported contexts.
 
-Check whether Electron needs its accessibility tree enabled through the documented accessibility mechanism. Do not infer that one successful Electron app or browser field establishes support for all editors. Publish limitations and Copy fallbacks with the tested matrix. Recording CPU architecture is what makes the §2 universal-build precondition checkable: the matrix needs at least one Apple Silicon and one Intel result before a universal build is published, rather than a build that merely links for both.
+The development machine has Safari, TextEdit, Notes, Mail, and Terminal, one physical display, and no Chromium browser, Electron app, or Intel hardware. Rows that cannot be exercised there are recorded in `docs/compatibility.md` as built but unverified, with the reason; they are not assumed to pass.
+
+Check whether Electron needs its accessibility tree enabled through the documented accessibility mechanism. Do not infer that one successful Electron app or browser field establishes support for all editors. Publish limitations and Copy fallbacks with the tested matrix. Recording CPU architecture keeps the §2 hardware statement honest: until the matrix holds an Intel result, the universal build is described as verified on Apple Silicon only.
 
 Test the first and later invocations after an Electron app launches. Where needed, use Electron's documented `AXManualAccessibility` integration and record the change; do not assume every Chromium browser exposes the same switch or behaviour. Do not toggle undocumented accessibility modes as a universal workaround. A delayed accessibility tree uses the normal geometry fallback rather than blocking the picker.
 
@@ -657,38 +683,45 @@ Preload or lazily prepare the immutable catalogue without delaying first keyboar
 
 ## 14. Build, signing, and release operations
 
-- Keep the bundle identifier, installation path, and signing identity stable for permission testing. Prefer an Apple Development identity when available; unsigned/ad-hoc local prototypes remain allowed, with documented TCC/re-grant limitations after rebuilds. Use/test Hardened Runtime early for release parity, without requiring paid signing credentials just to begin M0.
+- Keep the bundle identifier (`ch.lkmc.Charms`), installation path, and signing identity stable for permission testing. Sign local builds with the machine's Apple Development identity (`CODE_SIGN_IDENTITY`): macOS then keeps Accessibility grants across rebuilds, which an ad-hoc signature, different in every build, does not. Ad-hoc builds remain what CI and releases produce.
 - Document a predictable development installation/run path. Never automate granting TCC access or reset the user's permission database as a routine build step.
-- Keep certificates, credentials, notarization material, and provisioning data outside the repository; use local Keychain or CI secret storage.
-- Build without signing for ordinary CI checks where appropriate, and use a separate explicit signed release job.
-- Make that signed release job concrete: store notarization credentials as a `notarytool` Keychain profile outside the repository, submit with `xcrun notarytool submit --wait`, staple the ticket with `xcrun stapler staple`, and verify the outcome with `xcrun stapler validate` plus `spctl --assess` against a copy obtained the way a user would download it. Record the exact commands in `docs/release.md`, so "signed and notarized" is a checklist rather than an intention.
+- Keep certificates, credentials, and provisioning data outside the repository; use local Keychain or CI secret storage.
+- Use the shared pipelines unchanged. `ci.yml` builds, runs the tests, checks that the committed catalogue is what the generator produces from the pinned data, and assembles the universal app on the pinned hosted runner and Xcode. `release.yml` runs on a `v*` tag: it tests, builds the universal app, packages zip and dmg, publishes the GitHub Release, and compares the published assets with the built ones byte for byte. `zai-code-review.yml` adds the automated review. `CICD.md` documents them.
+- Releases are ad-hoc signed and not notarized, so the README and release notes state the Gatekeeper step a downloader needs. When a Developer ID account is supplied, add the `notarytool` submit, staple, and `spctl` verification as a checklist then; it is not a prerequisite for the first release.
 - Define "reproducible" before relying on it: either a clean checkout at a pinned commit, rebuilt on the documented toolchain, produces byte-identical archives, or the release notes state plainly that the published checksums identify the artifact rather than prove a reproducible build. Verify whichever claim is made once per release instead of assuming it.
-- Add CI for a macOS build, meaningful unit tests, deterministic data validation, and release-artifact checks. Use currently available supported runner/toolchain versions when implementing it, rather than freezing guessed service versions in this plan.
-- A signing identity/Apple Developer account is a release prerequisite, not a reason to block unsigned local prototyping.
 - Recommend a stable installation such as `/Applications` before enabling launch at login; verify that the tested build is not running from app translocation. Document removal/disabling login item, privacy, compatibility, permission recovery, and reinstalling a previous release from retained GitHub assets/checksums. Include data-schema compatibility/backup instructions; replacing the app alone is not a guaranteed downgrade of migrated user data.
 - Add automatic updates only after signing and release reproducibility work; assess a maintained updater separately if needed.
 
 ## 15. Decisions to record during implementation
 
-The defaults above allow work to begin. Record evidence and adjust them at the relevant milestone:
+Decisions settled by the spike of 10 November 2026 (macOS 27.0.1, Apple Silicon, one physical display plus a virtual one, Swiss German layout, TextEdit as the source):
+
+| Decision | Outcome | Evidence |
+| --- | --- | --- |
+| Minimum macOS version and Intel release support | macOS 14; universal build, Intel unverified (§2). | The package builds for both architectures on the current toolchain; no Intel machine or older system was available to run it. |
+| Nonactivating-panel window level and Spaces configuration | `.floating`, `.canJoinAllSpaces` + `.fullScreenAuxiliary` + `.transient`, `hidesOnDeactivate = false` (§6.4). | Key in about 10 ms without activating; focus returned to the source by itself within 3 ms. |
+| Caret geometry | Confirm the line from an adjacent character, else guard one extra line (§6.1). | TextKit's zero-length rectangle is one line high; character rectangles are right. |
+| Default insertion transport and per-app exceptions | One Unicode key event pair through `postToPid`; paste only for listed apps (§7.3). | All fixtures exact up to 64 UTF-16 units, selection replaced, one Undo, no delay needed. |
+| Typed-marker observer and attribution | `NSEvent` global key-down monitor; attribution by delivery channel; position by read-back (§7.5, §7.6). | Clean split at 2 ms key gaps; caret arithmetic at event time was off by one at 15 ms gaps. |
+| Insertion-backend permission model | Accessibility covers reading focus, posting to a process, and the key monitor. | Apple's documentation for the monitor; to be confirmed with the installed app, since the spike ran from an already trusted shell. |
+| Unicode/CLDR baseline and missing-glyph policy | Unicode 18.0.0, Emoji 18.0, CLDR 49; support decided at run time by a CoreText layout check (§8.1). | macOS 27.0.1 renders Emoji 17: newer entries must be hidden there, older systems hide more. |
+| Signing and release configuration | Shared pipeline: ad-hoc signed universal zip and dmg; Apple Development identity locally (§14). | The owner's other apps; a development identity is present on the machine and none for Developer ID. |
+
+Still to be recorded from the finished app, each in `docs/compatibility.md`:
 
 | Decision | Evidence needed | When |
 | --- | --- | --- |
-| Minimum macOS version and Intel release support | Actual build/toolchain compatibility and available test machines. | M0/M1 |
-| Nonactivating-panel window level and Spaces configuration | Real fullscreen, Stage Manager, separate-Spaces, and keyboard-focus behaviour at each candidate window level (§6.4). | M1 |
-| Default insertion transport and per-app exceptions | Exact-string, selection, Undo, focus, and clipboard tests. | M1 |
-| Typed-marker observer, permissions, and supported contexts | Committed-text proof, fast-typing handoff/order, bounded range replacement, IME/layout tests, and exclusion behaviour. | M1b/M4 |
-| Pasteboard restoration policy for supported apps | Demonstrated consumption/ownership behaviour and race tests. | M1/M4 |
-| Insertion-backend permission model | Public AX/listening/posting capability checks for each selected backend, observed permission prompts, denial/revocation handling, and Copy fallback. | M1/M1b |
-| Unicode/CLDR baseline and missing-glyph policy | Rendering on the minimum OS plus catalogue/search fixtures. | M2 |
+| Behaviour beyond TextEdit | The same checks in Safari, Notes, Mail, and Terminal; Chromium and Electron when a machine has them. | M4/M5 |
+| Full screen, Stage Manager, separate Spaces | The picker appears in the current context without a Space switch. "Displays have separate Spaces" is off on the development machine, and changing it needs a logout. | M5 |
+| Pasteboard restoration for listed apps | Demonstrated consumption behaviour and race tests, and what `accessBehavior` reports on each system. | M4 |
 | Final cell size, keyboard navigation, and mouse activation details | First-design review, increased text size, VoiceOver, IME tests, and an accidental-activation check for click-to-insert. | M3 |
-| Public signing/release configuration | Supplied Developer ID and a clean-install test. | M5 |
+| Key observation under Accessibility alone | An app launched through Launch Services with only the Accessibility grant. | M4 |
 
 Do not expand the main interface to solve rare compatibility problems. Keep special handling behind a clear fallback, an app-specific setting, or documented scope.
 
 ## 16. First implementation slice
 
-The first PR should contain the M0 scaffold only: app target, shared scheme, unit tests, and a native input harness. Follow with independently reviewable M1 work for shortcut/target capture, placement, session cancellation, and transport, each with appropriate pure tests and a manual check. Run the separate M1b typed-trigger spike before building its production adapter. Then complete the shared catalogue/UI; both invocation methods remain in the first usable release.
+The first implementation PR contains the scaffold in the shared setup (package, scripts, workflows, documents) together with the pure `CharmsCore` library, its tests, and the catalogue generator with the pinned data, so that CI exists on the main branch and has something real to run. The app follows in independently reviewable PRs for shortcut/target capture and placement, the picker, insertion, and the typed trigger, each checked against the real app. Both invocation methods remain in the first usable release.
 
 Catalogue generation and a refined grid can proceed independently once their interfaces are defined, but the focus/placement/insertion state machine remains the critical path. Delegate bounded data, fixture, documentation, and visual tasks only after their expected outputs can be checked independently.
 
@@ -722,6 +755,7 @@ These references establish available platform/data capabilities. The placement, 
 - [Apple: preflight keyboard-listening access](https://developer.apple.com/documentation/coregraphics/cgpreflightlisteneventaccess%28%29).
 - [Apple: request keyboard-listening access](https://developer.apple.com/documentation/coregraphics/cgrequestlisteneventaccess%28%29).
 - [Apple: creating an event tap](https://developer.apple.com/documentation/coregraphics/cgeventtapcreate).
+- [Apple: global event monitors and their accessibility requirement](https://developer.apple.com/documentation/appkit/nsevent/addglobalmonitorforevents%28matching%3Ahandler%3A%29).
 - [Apple: creating an accessibility observer](https://developer.apple.com/documentation/applicationservices/axobservercreate%28_%3Acallback%3A%29).
 - [Apple: event source key state](https://developer.apple.com/documentation/coregraphics/cgeventsourcekeystate%28_%3A_%3A%29).
 - [Apple: pasteboard change count](https://developer.apple.com/documentation/appkit/nspasteboard/changecount).
@@ -736,7 +770,7 @@ These references establish available platform/data capabilities. The placement, 
 - [Apple: macOS 26.4 release notes and Intel support horizon](https://developer.apple.com/documentation/macos-release-notes/macos-26_4-release-notes).
 - [Electron: accessibility integration](https://www.electronjs.org/docs/latest/tutorial/accessibility).
 - [Apple: window list information](https://developer.apple.com/documentation/coregraphics/cgwindowlistcopywindowinfo%28_%3A_%3A%29).
-- [Unicode Character Database](https://www.unicode.org/ucd/).
+- [Unicode Character Database](https://www.unicode.org/ucd/); pinned release: [18.0.0](https://www.unicode.org/Public/18.0.0/).
 - [Unicode Emoji specification, UTS #51](https://www.unicode.org/reports/tr51/).
 - [CLDR releases and downloads](https://cldr.unicode.org/index/downloads).
 - [Unicode: CLDR annotations](https://unicode.org/reports/tr35/tr35-general.html#Annotations).
