@@ -31,7 +31,7 @@ Machine: macOS 27.0.1, Apple Silicon, one physical display plus a virtual second
 | Can `::arrow` typed without a pause be reconciled? | Yes. A global key monitor reports exactly the keys delivered to other applications, and the panel's own event stream receives the rest. At 2 ms key gaps the source got `::arro` and the panel got `w`, and the two streams said so. |
 | Can the marker position be computed from the caret when a key is observed? | No. The monitor fires before the source applies the key; at 15 ms gaps the computed start was off by one and would have removed a space. The position has to be read back from the settled source text. |
 | Can multi-display behaviour be tested with one monitor? | Yes, with a virtual display created through the system's private `CGVirtualDisplay` classes, as development tooling only. |
-| Which emoji does the system draw? | macOS 27.0.1 renders Emoji 17; the pinned data is Emoji 18. Asking a font for glyphs of the code points is not a sufficient check; a CoreText layout is. |
+| Which emoji does the system draw? | macOS 27.0.1 renders Emoji 17; the pinned data is Emoji 18. Asking a font for glyphs of the code points is not a sufficient check, and neither is counting glyphs: a supported mixed-skin-tone couple is drawn as two overlaid glyphs. The advance width of the laid-out line separates the cases: one emoji wide when supported, several when the sequence falls apart. |
 
 Data releases found current and pinned: Unicode 18.0.0, Emoji 18.0, CLDR 49. CLDR annotates every emoji but only 367 other symbols.
 
