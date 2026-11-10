@@ -160,7 +160,7 @@ Confirm these search-field/result navigation rules with a small native interacti
 
 ### 4.4 Menu bar, settings, and onboarding
 
-The menu-bar item must offer Open Charms, Settings, About, and Quit. Opening through the menu bar uses the same target-capture rules as the shortcut. If no trustworthy external target is available, open in browse/copy mode.
+The menu-bar item must offer Open Charms, Settings, About, and Quit. Opening through the menu bar applies the same capture rules to the application that was frontmost before the status item was engaged: interacting with a status item activates Charms, so capture must deliberately target that previous application rather than Charms itself or its menu. If that application is unavailable or no trustworthy external target is available, open in browse/copy mode.
 
 Browse/copy mode is the same picker with no captured target: search, favourites, and recents behave normally, automatic insertion is unavailable, and Copy is the only outcome. Treat it as a supported outcome, not an error state.
 
@@ -590,6 +590,7 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | --- | --- | --- |
 | P0 | Caret on display B; mouse on A | Picker appears beside the caret on B. |
 | P0 | Caret unavailable; focused window on B; mouse on A | Picker uses B and a window/field fallback. |
+| P0 | Open from the menu bar while another app's field is focused | The previously frontmost app's field is targeted; when no trustworthy external target exists, the picker opens in browse/copy mode. |
 | P0 | Left/above-primary and mixed Retina/non-Retina layouts | Picker coordinates and size remain correct, entirely within the chosen usable frame. |
 | P0 | Caret near each display edge, Dock, or menu bar | Picker flips/clamps without disappearing or covering the insertion line unnecessarily. |
 | P0 | Source app in full screen with independent display Spaces, and again with Stage Manager on | Picker appears in the current context without a Space switch. |
