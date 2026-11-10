@@ -122,8 +122,9 @@ The diagram is structural; native font metrics determine final spacing.
 - Empty search shows a compact favourites section and up to two rows of recents. Seed a small useful favourites set only on first launch.
 - A non-empty query replaces those sections with a single result grid. Keep the selected name and full Unicode sequence in the footer.
 - Use a native scroll view for longer results, keep the selected cell visible, and avoid resizing the panel on every keystroke.
-- Start with the first matching item selected. Clearing search restores the initial favourites/recents state.
+- With a non-empty query, start the first matching item selected. With an empty query, leave favourites and recents unselected until the user navigates or clicks, so Enter cannot insert an item the user never chose; clearing search restores that unselected initial state.
 - Distinguish selection from hover. A stationary mouse must not steal selection after a keyboard search or rerender.
+- A click on a result cell is the mouse equivalent of Enter and inserts that item exactly once; clicks on panel chrome, section headers, or empty grid space never insert. Keep favourite and variant management on the context menu and `⌘D` so one click never does two things. Record this activation rule with the other M3 interaction decisions (§15).
 - Use system appearance, readable contrast, restrained borders, and native focus indicators. Honour Reduce Motion and Increase Contrast.
 - Do not introduce permanent sidebars, font selectors, code-format controls, or category toolbars into this surface.
 - An empty result state says that nothing matched and allows immediate query editing. Enter does nothing when no result is selected.
@@ -140,7 +141,7 @@ The diagram is structural; native font metrics determine final spacing.
 | Partial final rows | Treat the short trailing row as a real case, not an edge case: Right and Down clamp to the last cell instead of wrapping, Left from a row's first cell moves to the previous row's last cell, and a one-cell final row still answers Up and Down. Confirm the choice during the M3 interaction review (§15). |
 | Typing while navigating results | Return to the search field and edit the query using ordinary text input. |
 | Enter | Insert the selected item exactly once. |
-| Command-Enter | Copy the selected Unicode string, close the picker, and return focus without automatic insertion. |
+| Command-Enter | Copy the selected Unicode string, close the picker, and return focus without automatic insertion. Focus restoration follows the Escape rule (§7.1) and happens only when the original context is still current. |
 | Escape | Cancel and restore focus. |
 | Command-D | Toggle the selected item's favourite state. |
 | Tab / Shift-Tab | Follow a predictable native focus order; never trap the user in the grid. |
@@ -160,6 +161,12 @@ Confirm these search-field/result navigation rules with a small native interacti
 ### 4.4 Menu bar, settings, and onboarding
 
 The menu-bar item must offer Open Charms, Settings, About, and Quit. Opening through the menu bar uses the same target-capture rules as the shortcut. If no trustworthy external target is available, open in browse/copy mode.
+
+Browse/copy mode is the same picker with no captured target: search, favourites, and recents behave normally, automatic insertion is unavailable, and Copy is the only outcome. Treat it as a supported outcome, not an error state.
+
+While the picker is visible, Open Charms from the menu bar follows the same toggle rule as the shortcut and cancels the session instead of opening a second one.
+
+While the shortcut recorder is capturing a new combination, it consumes keystrokes locally and suppresses the global handler, so recording `⌃P` does not open the picker and the combination is stored exactly as pressed.
 
 Keep settings to:
 
@@ -611,7 +618,8 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P1 | `x :: Int`, a line starting with `:::`, and `::1` at the start of a field | The picker does not open, or closes, and the source holds exactly what was typed. |
 | P1 | Type `::arrow` and Enter in one motion, at normal and high speed | Enter is not lost: one arrow replaces the activation text once the handoff settles, or Copy is offered if it cannot settle. |
 | P1 | `std::`, a pasted `::`, rapid repeats, U.S. and at least one non-U.S. colon layout, and another app's shortcode UI | Only confirmed eligible committed markers invoke Charms independent of physical key position; exclusions/boundaries prevent duplicate or unwanted handling. |
-| P1 | Shortcut collision, changed layout, or PopChar still owning `⌃P` | Conflict is recoverable; recorder labels remain accurate and another shortcut can be chosen. |
+| P1 | Shortcut collision, changed layout, or another utility (for example PopChar) already owning `⌃P` | Conflict is recoverable; recorder labels remain accurate and another shortcut can be chosen. |
+| P1 | Recording a new shortcut that equals the current one or a reserved system combination | The recorder captures the keystroke without opening the picker or toggling a session; the stored shortcut matches what was recorded. |
 | P1 | Keyboard-only use and VoiceOver | Search, selection, favourites, variants, insertion, Copy, and dismissal are reachable and named. |
 | P1 | Relaunch, sleep/wake, denied login item, and corrupt preferences | Settings recover predictably; Charms remains launchable and quit-able. |
 
@@ -668,7 +676,7 @@ The defaults above allow work to begin. Record evidence and adjust them at the r
 | Typed-marker observer, permissions, and supported contexts | Committed-text proof, fast-typing handoff/order, bounded range replacement, IME/layout tests, and exclusion behaviour. | M1b/M4 |
 | Pasteboard restoration policy for supported apps | Demonstrated consumption/ownership behaviour and race tests. | M1/M4 |
 | Unicode/CLDR baseline and missing-glyph policy | Rendering on the minimum OS plus catalogue/search fixtures. | M2 |
-| Final cell size and keyboard navigation details | First-design review, increased text size, VoiceOver, and IME tests. | M3 |
+| Final cell size, keyboard navigation, and mouse activation details | First-design review, increased text size, VoiceOver, IME tests, and an accidental-activation check for click-to-insert. | M3 |
 | Public signing/release configuration | Supplied Developer ID and a clean-install test. | M5 |
 
 Do not expand the main interface to solve rare compatibility problems. Keep special handling behind a clear fallback, an app-specific setting, or documented scope.
