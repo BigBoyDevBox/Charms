@@ -233,7 +233,7 @@ Start with public system hot-key registration behind `HotKeyService` rather than
 
 On each invocation, create a new session containing:
 
-- Originating process identifier and application identity.
+- Originating process identifier and application identity, captured from the frontmost application at invocation time (for example `NSWorkspace.shared.frontmostApplication`), not from the picker's own activation state.
 - Opaque references to the focused editable AX element and focused window, when available.
 - Selection range, caret/selection bounds, field bounds, and window bounds where supported.
 - Display geometry at invocation and the selected placement source.
@@ -253,8 +253,8 @@ Bound AX messaging time and the total capture deadline. If a request is slow, pr
 1. **Usable caret/selection rectangle:** choose the display containing that rectangle and place adjacent to it.
 2. **Focused editable field rectangle:** choose its display, using greatest intersection if it spans screens, and anchor near the field.
 3. **Focused window rectangle:** choose the display with the greatest visible overlap and place within the window's usable intersection.
-4. **Mouse display:** use only if no usable source geometry can be obtained.
-5. **Primary available display:** final fallback if the mouse is not within a current screen.
+4. **Mouse display:** use only if no usable source geometry can be obtained. Determine it from the current pointer location (for example `NSEvent.mouseLocation`) compared against the connected screen frames, not from `NSScreen.main` or a remembered panel position.
+5. **Primary available display:** final fallback if the mouse is not within a current screen. Use the system's primary display (for example `CGMainDisplayID()`) rather than an arbitrary entry in `NSScreen.screens`.
 
 Select the screen from captured geometry rather than consulting the picker's own `NSScreen.main` after it has become key. Do not remember a last-used global panel position that overrides the current source.
 
@@ -303,13 +303,13 @@ idle -> capturing -> browsing -> validating -> dispatching -> idle
 
 Check permission, process identity/liveness, original window/element validity, and the source's current focus. Where supported, verify the selection range has not changed since capture. The picker being key is an expected exception, not permission to target any newly frontmost app.
 
-Treat secure/password fields and active secure-input conditions conservatively. Do not inspect their text or synthesize insertion into them. If an element cannot be classified or revalidated sufficiently, offer Copy and ask the user to place the caret and invoke Charms again.
+Treat secure/password fields and active secure-input conditions conservatively. Detect them from the accessibility element (for example a secure-text subrole or a value reported as confidential) or from the system's secure-input state; do not infer security from field contents. Do not inspect their text or synthesize insertion into them. If an element cannot be classified or revalidated sufficiently, offer Copy and ask the user to place the caret and invoke Charms again.
 
 If the user switches to a different field/window while the picker is open, cancel or require reinvocation. Never silently retarget. A terminated app, recycled process identifier, replaced web element, or closed document must invalidate the snapshot.
 
 ### 7.3 Choose a transport before sending text
 
-After freezing the selected output, wait for invocation/selection modifiers to be physically released within a bounded interval. Do not synthesize key-up events for keys the user is still holding. If modifiers remain held, keep a recoverable pending state or cancel; do not send altered text.
+After freezing the selected output, wait for invocation/selection modifiers to be physically released within a bounded interval. Query physical key state directly (for example `CGEventSource.keyState(.combinedSessionState, key:)` for the shortcut and selection modifiers) rather than relying on the event stream. Do not synthesize key-up events for keys the user is still holding. If modifiers remain held, keep a recoverable pending state or cancel; do not send altered text.
 
 Then dismiss/resign the panel, establish that the original app and exact target field are again the effective receiver, and revalidate immediately before dispatch. Prefer PID-addressed Quartz events where supported and tested. PID targeting alone does not prove that the correct field/window is focused; abort if that validation fails. Do not silently fall back to the global event stream.
 
