@@ -24,13 +24,23 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             window.isReleasedWhenClosed = false
             window.delegate = self
             window.contentMinSize = SettingsView.minimumSize
-            window.setContentSize(SettingsView.defaultSize)
+            window.setContentSize(Self.initialSize(for: window))
             window.center()
             self.window = window
         }
         // An accessory app is not activated by showing a window.
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// The default size, shortened on a display too small to show it whole.
+    private static func initialSize(for window: NSWindow) -> NSSize {
+        var size = SettingsView.defaultSize
+        if let visible = (window.screen ?? NSScreen.main)?.visibleFrame {
+            let titleBar = window.frame.height - window.contentLayoutRect.height
+            size.height = max(SettingsView.minimumSize.height, min(size.height, visible.height - titleBar))
+        }
+        return size
     }
 }
 
@@ -272,7 +282,9 @@ private struct ApplicationList: View {
         VStack(alignment: .leading, spacing: 6) {
             List(sorted, id: \.self, selection: $selection) { identifier in
                 HStack {
-                    Text(Self.title(identifier))
+                    // One line, so that every row has the height the list
+                    // was sized for.
+                    Text(Self.title(identifier)).lineLimit(1).truncationMode(.tail)
                     Spacer()
                     // An application that is not installed has no name to
                     // show; its identifier is already the title.
