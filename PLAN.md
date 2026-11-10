@@ -248,7 +248,7 @@ On each invocation, create a new session containing:
 - Session identifier, permission state, and whether automatic insertion is allowed.
 - Invocation source: shortcut, menu bar, or typed marker. A typed session additionally holds the activation range, bounded source-side query prefix, and expected caret position after them.
 
-Keep this snapshot in memory only and discard it after the session ends. Shortcut/menu-bar invocation does not read selected text or document contents. Typed invocation may read only the marker, a bounded source-side query prefix during focus transfer, and a small boundary context. Neither path captures the window title or clipboard as part of ordinary invocation.
+Keep this snapshot in memory only and discard it after the session ends. Shortcut/menu-bar invocation does not read selected text or document contents. Typed invocation may read only the marker, a bounded source-side query prefix during focus transfer, and a small boundary context. Neither path captures the window title or clipboard as part of ordinary invocation. Charms' own windows are never capture targets: when an invocation finds focus inside the settings window or another Charms surface, treat the session as having no trustworthy external target and open in browse/copy mode.
 
 Try the focused element's selected range and the bounds-for-range AX parameter. A collapsed selection is normally the caret. Some apps return no useful bounds, and that is an expected compatibility condition. Many apps return an empty or zero rectangle for a zero-length range, so probe in a fixed order: the zero-length range itself, then the character before the caret (use its trailing edge), then the character after it (use its leading edge). Step over a whole surrogate pair or composed sequence rather than half of one. A newline or a wrapped line's first character can report a rectangle on another line, so check that the derived caret lies on the same line as its neighbour. In an empty field, fall back to the field's bounds.
 
@@ -600,7 +600,8 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P0 | Return held down after Enter | No extra line break reaches the source; dispatch waits for the release, or the session falls back to Copy. |
 | P0 | User changes app/window/field while picker is open | Session cancels or becomes copy-only; text is never sent to the new target. |
 | P0 | Source quits, document closes, or AX element becomes stale | No insertion and no forced reactivation of an unrelated app. |
-| P0 | Password/secure field or secure-input condition | Automatic insertion is unavailable; no source text is read. |
+| P0 | Password/secure field or secure-input condition | Automatic insertion is unavailable and the picker opens in browse/copy mode; no source text is read. |
+| P0 | Invocation with no trustworthy external target: menu bar with no focused field, or focus inside Charms' own UI | The picker opens in browse/copy mode; no insertion is attempted and Copy works. |
 | P0 | Accessibility missing or revoked | Browse/Copy remains usable and enabling insertion has a clear recovery path. |
 | P0 | User copies another item during a paste transaction | New clipboard contents are retained; old contents are not restored over them. |
 | P0 | Slow/hung source app or late AX response | Charms stays responsive and late work cannot affect another session. |
