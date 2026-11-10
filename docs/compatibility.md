@@ -41,10 +41,10 @@ One system so far, on 10 November 2026:
 | `click_cell`, `click_outside` | A click on a cell inserts it; a click elsewhere cancels and changes nothing. |
 | `cancel_while_held` | Escape pressed while Return is still down: the picker stays until Return is released, then closes without inserting. |
 | `typed_trigger`, `typed_trigger_fast` | `::arrow` and Return replace the colons and the query, also when typed with 6 ms between keys. |
-| `typed_trigger_first_selected` | `::`, Tab and Return replace the colons with the first favourite. |
+| `typed_trigger_first_selected` | `::` and Return replace the colons with the first favourite. |
 | `typed_trigger_late_selection` | A field that applies a selection made through Accessibility 30 ms after the call, as Chromium does: the colons are still replaced. |
 | `typed_trigger_focus_moves_during_selection` | While such a late selection is on its way, another field of the same application takes the keyboard: nothing is sent, and that field stays empty. |
-| `typed_trigger_selection_refused` | A field that accepts that call and never honours it: nothing is sent, the picker offers Copy, and Escape leaves the colons. |
+| `typed_trigger_selection_refused` | A field that accepts that call and never honours it: nothing is sent, the picker comes back for copying, a second Return copies, and the colons stay. |
 | `typed_trigger_escape` | Escape after `::ar` leaves `::` as typed. |
 | `colons_inside_a_word` | `std::cout` does not open the picker. |
 | `password_field` | In a password field nothing is sent; Return copies. |
