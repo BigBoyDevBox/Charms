@@ -82,7 +82,10 @@ final class TargetCaptureService: @unchecked Sendable {
             || AX.string(element, kAXRoleAttribute) == "AXSecureTextField"
         let ownWindow = AX.element(element, kAXWindowAttribute) ?? window
         let selection = isSecure ? nil : AX.range(element, kAXSelectedTextRangeAttribute)
-        let probe = selection.map { Self.probe(element, selection: $0, primaryFrame: primaryFrame) } ?? CaretProbe()
+        // The reported selection is kept as it is for the comparison before
+        // dispatch; geometry is only asked for a range that can exist.
+        let probe = selection.flatMap { SourceTextRange(location: $0.location, length: $0.length) }
+            .map { Self.probe(element, selection: $0, primaryFrame: primaryFrame) } ?? CaretProbe()
 
         return CapturedTarget(
             processID: processID, launchDate: launchDate, bundleIdentifier: bundleIdentifier, applicationName: name,
@@ -93,11 +96,11 @@ final class TargetCaptureService: @unchecked Sendable {
 
     /// Rectangles of the caret and of the one character on either side.
     /// Geometry only: the characters themselves are not read.
-    private static func probe(_ element: AXUIElement, selection: CFRange, primaryFrame: CGRect) -> CaretProbe {
+    private static func probe(_ element: AXUIElement, selection: SourceTextRange, primaryFrame: CGRect) -> CaretProbe {
         func convert(_ rect: CGRect?) -> CGRect? {
             rect.map { ScreenSpace.appKitRect(fromAccessibility: $0, primaryFrame: primaryFrame) }
         }
-        let end = selection.location + selection.length
+        let end = selection.end
         return CaretProbe(
             caret: convert(AX.bounds(element, location: end, length: 0)),
             previousCharacter: end > 0 ? convert(AX.bounds(element, location: end - 1, length: 1)) : nil,
@@ -119,7 +122,7 @@ final class TargetCaptureService: @unchecked Sendable {
 
     private static func readMarker(in target: CapturedTarget, length: Int, primaryFrame: CGRect) -> MarkerReading? {
         guard let element = target.element, !target.isSecure, !IsSecureEventInputEnabled(),
-              let selection = AX.range(element, kAXSelectedTextRangeAttribute), selection.length == 0 else {
+              let selection = AX.usableRange(element, kAXSelectedTextRangeAttribute), selection.length == 0 else {
             return nil
         }
         let caret = selection.location

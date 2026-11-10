@@ -92,7 +92,10 @@ enum Inspect {
         guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &range) else { return result }
         result["selection"] = [range.location, range.length]
 
-        var caret = CFRange(location: range.location + range.length, length: 0)
+        // The frontmost application can be any application, with any numbers.
+        let (end, overflowed) = range.location.addingReportingOverflow(range.length)
+        guard !overflowed else { return result }
+        var caret = CFRange(location: end, length: 0)
         if let parameter = AXValueCreate(.cfRange, &caret) {
             var bounds: CFTypeRef?
             if AXUIElementCopyParameterizedAttributeValue(element, kAXBoundsForRangeParameterizedAttribute as CFString, parameter, &bounds) == .success,

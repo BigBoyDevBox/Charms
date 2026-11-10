@@ -43,14 +43,26 @@ enum AX {
         return (result as! AXUIElement)
     }
 
+    /// A range exactly as the application reports it, impossible values
+    /// included. Compare it, but do not compute with it: `usableRange`
+    /// is for arithmetic.
+    ///
+    /// The two are kept apart on purpose. At the final check before an
+    /// insertion a garbage answer has to count as "the selection is not
+    /// what it was", which leads to Copy. Turning it into "no answer" would
+    /// be read as "this field reports no selection" and let the insertion
+    /// through.
     static func range(_ element: AXUIElement, _ attribute: String) -> CFRange? {
         guard let result = value(element, attribute), CFGetTypeID(result) == AXValueGetTypeID() else { return nil }
         var range = CFRange()
         guard AXValueGetValue(result as! AXValue, .cfRange, &range) else { return nil }
-        // The numbers come from another application. One that reports a
-        // negative value, or a range whose end overflows, has no range.
-        guard SourceTextRange(location: range.location, length: range.length) != nil else { return nil }
         return range
+    }
+
+    /// A reported range that arithmetic is safe on, or nil when the
+    /// application gave none or gave one that cannot exist.
+    static func usableRange(_ element: AXUIElement, _ attribute: String) -> SourceTextRange? {
+        range(element, attribute).flatMap { SourceTextRange(location: $0.location, length: $0.length) }
     }
 
     /// Position and size of an element, in Accessibility coordinates.
