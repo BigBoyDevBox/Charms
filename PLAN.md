@@ -272,7 +272,9 @@ Select the screen from captured geometry rather than consulting the picker's own
 
 ### 6.4 Panel lifecycle
 
-Prototype an `NSPanel` constructed with the nonactivating-panel style, able to become key for search without becoming an ordinary main application window. Capture the origin before ordering it on screen. Use standard window levels.
+Prototype an `NSPanel` constructed with the nonactivating-panel style, able to become key for search without becoming an ordinary main application window. Capture the origin before ordering it on screen.
+
+Do not assume the default `NSNormalWindowLevel` is sufficient: a P0 acceptance scenario (§12.2) requires the picker to appear above a full-screen source app in the current Space. During the M1 spike, evaluate explicit candidate window levels in order (for example `NSStatusWindowLevel`, `NSPopUpMenuWindowLevel`, and `NSScreenSaverWindowLevel`), measuring ordering, keyboard focus, and Spaces behaviour at each, and record the chosen level with evidence in the §15 decisions table. Do not raise the level higher than the full-screen and focus tests require.
 
 Prove the intended collection-behaviour combination — at minimum `.canJoinAllSpaces` together with `.fullScreenAuxiliary`, plus `.stationary` and/or `.transient` as needed — on supported macOS versions. Do not combine mutually exclusive behaviours (for example `.fullScreenPrimary` with `.fullScreenAuxiliary`) or rely on a newly introduced option without availability checks. Set `hidesOnDeactivate` so the panel does not disappear on an expected focus handoff. Opening Charms must not move the user to a different Space.
 
@@ -622,7 +624,7 @@ The defaults above allow work to begin. Record evidence and adjust them at the r
 | Decision | Evidence needed | When |
 | --- | --- | --- |
 | Minimum macOS version and Intel release support | Actual build/toolchain compatibility and available test machines. | M0/M1 |
-| Nonactivating-panel/Spaces configuration | Real fullscreen, Stage Manager, separate-Spaces, and keyboard-focus behaviour. | M1 |
+| Nonactivating-panel window level and Spaces configuration | Real fullscreen, Stage Manager, separate-Spaces, and keyboard-focus behaviour at each candidate window level (§6.4). | M1 |
 | Default insertion transport and per-app exceptions | Exact-string, selection, Undo, focus, and clipboard tests. | M1 |
 | Typed-marker observer, permissions, and supported contexts | Committed-text proof, fast-typing handoff/order, bounded range replacement, IME/layout tests, and exclusion behaviour. | M1/M4 |
 | Pasteboard restoration policy for supported apps | Demonstrated consumption/ownership behaviour and race tests. | M1/M4 |
