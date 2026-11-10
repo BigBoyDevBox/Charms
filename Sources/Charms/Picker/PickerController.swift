@@ -388,6 +388,9 @@ final class PickerController: PickerSearchDelegate {
     private func activate(_ action: SessionAction, choosing item: PickerItem? = nil) {
         guard let chosen = item ?? model.selectedItem else { return }
         guard machine.state == .browsing || machine.state == .handoff else { return }
+        // During handoff only the first choice counts. A second Return on
+        // another cell must not replace what the first one froze.
+        if machine.state == .handoff, machine.pendingActivation != nil { return }
         session?.chosen = chosen
         perform(machine.handle(.activate(action)))
     }
