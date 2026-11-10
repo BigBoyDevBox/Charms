@@ -18,11 +18,11 @@ One system so far, on 10 November 2026:
 
 ### How
 
-- **Automated:** `swift test` (319 tests) and `swift run CharmsCatalogTool check`.
+- **Automated:** `swift test` (322 tests) and `swift run CharmsCatalogTool check`.
 - **End to end:** `scripts/e2e.sh` drives the built app with real key and
   mouse events against the `CharmsHarness` window (an `NSTextView`, an
   `NSTextField` and an `NSSecureTextField`) and compares the text that
-  arrives, scalar for scalar. All 16 scenarios passed.
+  arrives, scalar for scalar. All 17 scenarios passed.
 - **By hand:** the built app in the applications below, driven with the same
   synthetic keys, with screenshots and the app's own trace (`CHARMS_TRACE`).
 
@@ -38,6 +38,7 @@ One system so far, on 10 November 2026:
 | `copy` | Command-Return copies and inserts nothing. |
 | `placement` | The picker window is at the caret and does not cover the caret's line. |
 | `click_cell`, `click_outside` | A click on a cell inserts it; a click elsewhere cancels and changes nothing. |
+| `cancel_while_held` | Escape pressed while Return is still down: the picker stays until Return is released, then closes without inserting. |
 | `typed_trigger`, `typed_trigger_fast` | `::arrow` and Return replace the colons and the query, also when typed with 6 ms between keys. |
 | `typed_trigger_escape` | Escape after `::ar` leaves `::` as typed. |
 | `colons_inside_a_word` | `std::cout` does not open the picker. |

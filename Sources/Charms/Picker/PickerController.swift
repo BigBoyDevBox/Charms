@@ -397,7 +397,7 @@ final class PickerController: PickerSearchDelegate {
     private func awaitRelease(_ id: SessionID) {
         let gate = ReleaseGate(start: ProcessInfo.processInfo.systemUptime)
         func poll() {
-            guard session?.id == id, case .awaitingRelease = machine.state else { return }
+            guard session?.id == id, machine.isWaitingForRelease else { return }
             switch gate.evaluate(KeyState.current(), now: ProcessInfo.processInfo.systemUptime) {
             case .released:
                 perform(machine.handle(.keysReleased(id)))

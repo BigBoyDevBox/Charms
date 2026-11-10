@@ -41,6 +41,11 @@ public enum SessionState: Equatable, Sendable {
     /// A choice was made; waiting for the keys or button that made it to be
     /// released.
     case awaitingRelease(SessionAction)
+    /// Cancelled while the key or button that made a choice was still down.
+    /// The picker stays, and keeps the keyboard, until it is released:
+    /// closing at once would hand the keyboard back with Return held, and
+    /// its repeats would land in the source.
+    case releasingAfterCancel
     /// Focus is being handed back and the target checked one last time.
     case validating
     case copying
@@ -131,8 +136,17 @@ public struct SessionMachine: Sendable {
     /// True while the picker is on screen and accepting input.
     public var isPickerVisible: Bool {
         switch state {
-        case .handoff, .browsing, .awaitingRelease: return true
+        case .handoff, .browsing, .awaitingRelease, .releasingAfterCancel: return true
         case .idle, .capturing, .validating, .copying, .dispatching: return false
+        }
+    }
+
+    /// True while the controller should keep watching for the keys and the
+    /// mouse button to come up.
+    public var isWaitingForRelease: Bool {
+        switch state {
+        case .awaitingRelease, .releasingAfterCancel: return true
+        case .idle, .capturing, .handoff, .browsing, .validating, .copying, .dispatching: return false
         }
     }
 
@@ -170,7 +184,11 @@ public struct SessionMachine: Sendable {
             guard isCurrent(id), state == .handoff else { return [] }
             return settleHandoff(id, verified: verified)
         case .keysReleased(let id):
-            guard isCurrent(id), case .awaitingRelease(let action) = state else { return [] }
+            guard isCurrent(id) else { return [] }
+            if state == .releasingAfterCancel {
+                return end(.cancelled, dismiss: true, restoreFocus: true)
+            }
+            guard case .awaitingRelease(let action) = state else { return [] }
             switch action {
             case .insert:
                 state = .validating
@@ -180,7 +198,12 @@ public struct SessionMachine: Sendable {
                 return [.dismiss(id, restoreFocus: true), .copy(id)]
             }
         case .releaseDeadlinePassed(let id):
-            guard isCurrent(id), case .awaitingRelease = state else { return [] }
+            guard isCurrent(id) else { return [] }
+            if state == .releasingAfterCancel {
+                // Held for a whole second after cancelling: close anyway.
+                return end(.cancelled, dismiss: true, restoreFocus: true)
+            }
+            guard case .awaitingRelease = state else { return [] }
             // Releasing the keys later must not insert by itself: the choice
             // is dropped and a fresh activation is required.
             state = .browsing
@@ -230,7 +253,7 @@ public struct SessionMachine: Sendable {
             // interrupts a session: recognition is suspended while one runs.
             guard newInvocation != .typedMarker else { return [] }
             return cancel()
-        case .awaitingRelease, .validating, .copying, .dispatching:
+        case .awaitingRelease, .releasingAfterCancel, .validating, .copying, .dispatching:
             // A commit is under way; a held or repeated shortcut must not
             // turn it into a cancellation or a second session.
             return []
@@ -251,7 +274,7 @@ public struct SessionMachine: Sendable {
                 pendingActivation = action
             }
             return []
-        case .idle, .capturing, .awaitingRelease, .validating, .copying, .dispatching:
+        case .idle, .capturing, .awaitingRelease, .releasingAfterCancel, .validating, .copying, .dispatching:
             // A second Return, or a click arriving with a Return, is ignored.
             return []
         }
@@ -283,8 +306,15 @@ public struct SessionMachine: Sendable {
             return []
         case .capturing:
             return end(.cancelled, dismiss: false)
-        case .handoff, .browsing, .awaitingRelease:
+        case .handoff, .browsing:
             return end(.cancelled, dismiss: true, restoreFocus: true)
+        case .awaitingRelease:
+            // The choice is dropped now; the picker closes when the key or
+            // button that made it comes up.
+            state = .releasingAfterCancel
+            return []
+        case .releasingAfterCancel:
+            return []
         case .validating:
             // The picker is already hidden and focus is on its way back.
             return end(.cancelled, dismiss: true, restoreFocus: false)

@@ -130,6 +130,39 @@ final class SessionMachineTests: XCTestCase {
         XCTAssertEqual(machine.handle(.cancel), [.dismiss(id, restoreFocus: true), .finish(id, .cancelled)])
     }
 
+    func testCancelWhileTheCommitKeyIsHeldWaitsForItsRelease() {
+        // Escape pressed with Return still down. Closing at once would hand
+        // the keyboard back with Return held, and its repeats would land in
+        // the document.
+        var (machine, id) = browsing()
+        _ = machine.handle(.activate(.insert))
+        XCTAssertEqual(machine.handle(.cancel), [])
+        XCTAssertEqual(machine.state, .releasingAfterCancel)
+        XCTAssertTrue(machine.isPickerVisible)
+        XCTAssertTrue(machine.isWaitingForRelease)
+        XCTAssertEqual(machine.handle(.keysReleased(id)), [.dismiss(id, restoreFocus: true), .finish(id, .cancelled)])
+        XCTAssertTrue(machine.isIdle)
+    }
+
+    func testCancelWhileHeldEndsAtTheDeadlineAtTheLatest() {
+        var (machine, id) = browsing()
+        _ = machine.handle(.activate(.copy))
+        _ = machine.handle(.cancel)
+        XCTAssertEqual(machine.handle(.releaseDeadlinePassed(id)), [.dismiss(id, restoreFocus: true), .finish(id, .cancelled)])
+        XCTAssertTrue(machine.isIdle)
+    }
+
+    func testNothingRevivesASessionCancelledWhileHeld() {
+        var (machine, id) = browsing()
+        _ = machine.handle(.activate(.insert))
+        _ = machine.handle(.cancel)
+        XCTAssertEqual(machine.handle(.activate(.insert)), [])
+        XCTAssertEqual(machine.handle(.invoke(.shortcut)), [])
+        XCTAssertEqual(machine.handle(.cancel), [])
+        XCTAssertEqual(machine.handle(.validated(id, .valid)), [])
+        XCTAssertEqual(machine.state, .releasingAfterCancel)
+    }
+
     func testCancelDuringValidationNeverDispatches() {
         var (machine, id) = browsing()
         _ = machine.handle(.activate(.insert))

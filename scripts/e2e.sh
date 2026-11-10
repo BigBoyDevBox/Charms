@@ -275,6 +275,29 @@ scenario_click_outside() {
     expect "text" "$(editor)" "A "
 }
 
+scenario_cancel_while_held() {
+    # Escape pressed while Return is still down. The picker keeps the
+    # keyboard until Return comes up, so that the held key cannot repeat
+    # into the document; then it closes without inserting.
+    reset "A "
+    open_picker || return 1
+    local from holder; from="$(mark)"
+    typing "arrow"
+    "$HARNESS" key --name return --hold-ms 900 >/dev/null &
+    holder=$!
+    sleep 0.25
+    press escape
+    if ! picker_origin >/dev/null; then
+        wait "$holder"
+        FAILURE="the picker closed while Return was still held"
+        return 1
+    fi
+    wait "$holder"
+    await "outcome-cancelled" "$from" || { FAILURE="the session was not cancelled"; return 1; }
+    sleep 0.15
+    expect "text" "$(editor)" "A "
+}
+
 scenario_paste_backend() {
     # For applications set to "insert by pasting".
     reset "A "
@@ -362,7 +385,7 @@ scenario_password_field() {
     expect "clipboard" "$(clipboard)" "→"
 }
 
-ALL=(insert escape replace_selection sequence navigate copy placement click_cell click_outside
+ALL=(insert escape replace_selection sequence navigate copy placement click_cell click_outside cancel_while_held
      typed_trigger typed_trigger_fast typed_trigger_escape colons_inside_a_word password_field
      paste_backend pass_through)
 
