@@ -1,0 +1,16 @@
+# Pinned source data for the catalogue generator.
+#
+# Format: relative path<TAB>URL<TAB>sha256<TAB>byte count
+#
+# Re-fetch everything with scripts/fetch-unicode-data.sh; verify the files on
+# disk with scripts/fetch-unicode-data.sh --verify. Both modes fail when a
+# checksum differs. Do not substitute another version for a missing URL.
+Data/unicode/18.0.0/UnicodeData.txt	https://www.unicode.org/Public/18.0.0/ucd/UnicodeData.txt	0736451de439ae7baf1425136617da495e09ee5afbe6e394374db7009ea08950	2243593
+Data/unicode/18.0.0/NameAliases.txt	https://www.unicode.org/Public/18.0.0/ucd/NameAliases.txt	3d5cf5e468901b080cd99adf2230061b748083705fe633db43ac8b73ec7a13da	16714
+Data/unicode/18.0.0/Blocks.txt	https://www.unicode.org/Public/18.0.0/ucd/Blocks.txt	a58f8d322f3c5e254f9f97b1cbf76a454a7e02de6ac35619a5e4f27aaabfd553	11906
+Data/unicode/18.0.0/Scripts.txt	https://www.unicode.org/Public/18.0.0/ucd/Scripts.txt	0071fd81b6aeae25f6e8bce8efec3066a6476a91b49bdb2f52dc76e817862a6a	196089
+Data/unicode/18.0.0/DerivedAge.txt	https://www.unicode.org/Public/18.0.0/ucd/DerivedAge.txt	58b04334e3a31f9612694bbc3f6bff4a302b7d424565bca9c47e30aa74f8dbac	142568
+Data/unicode/18.0.0/emoji-test.txt	https://www.unicode.org/Public/18.0.0/emoji/emoji-test.txt	8f3735cda1f92a779d78af67cf86066bb1f07143dc22f2ac29394d9bc57ab21a	671655
+Data/cldr/49/annotations-en.json	https://raw.githubusercontent.com/unicode-org/cldr-json/49.0.0/cldr-json/cldr-annotations-full/annotations/en/annotations.json	6b6b6e0e5f211bc31cf3fa39f385d80dea6cd19ee19bbc6db9071fce3ae5d360	440667
+Data/cldr/49/annotations-derived-en.json	https://raw.githubusercontent.com/unicode-org/cldr-json/49.0.0/cldr-json/cldr-annotations-derived-full/annotationsDerived/en/annotations.json	7aad034f689cb6553f8d7366bfee8c4ea2818c7776907bc5118aab575223dea3	785793
+Data/unicode/LICENSE-UNICODE.txt	https://www.unicode.org/license.txt	e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96	1995

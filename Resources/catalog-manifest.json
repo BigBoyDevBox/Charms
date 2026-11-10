@@ -1,0 +1,33 @@
+{
+  "cldrVersion" : "49",
+  "curatedAliases" : 352,
+  "emojiBases" : 1923,
+  "emojiVersion" : "18.0",
+  "entriesByKind" : {
+    "emoji" : 1923,
+    "letter" : 26596,
+    "mark" : 2324,
+    "number" : 2247,
+    "punctuation" : 860,
+    "space" : 25,
+    "symbol" : 7533,
+    "variant" : 2040
+  },
+  "entriesByRank" : {
+    "0" : 414,
+    "1" : 4329,
+    "2" : 8301,
+    "3" : 3989,
+    "4" : 26515
+  },
+  "entriesWithAliases" : 414,
+  "entriesWithCldrNames" : 4559,
+  "longestEntry" : "🧑🏻‍❤️‍💋‍🧑🏼",
+  "maxUTF16Length" : 15,
+  "outputBytes" : 3070397,
+  "rangeCodePoints" : 131576,
+  "rangeCount" : 16,
+  "totalEntries" : 43548,
+  "unicodeVersion" : "18.0.0",
+  "variants" : 2040
+}
