@@ -315,6 +315,8 @@ The spike must compare two methods using the same complete string fixtures:
 
 Prefer the Unicode path where it behaves like ordinary typing and preserves the clipboard. Apple documents that some frameworks ignore an event's supplied Unicode string, so successful event dispatch is not proof of insertion.
 
+Decide the dispatch granularity during the spike instead of leaving it implicit, and record the choice with its evidence: either one event carrying the whole UTF-16 string, or one event per Unicode scalar with the intervening key-up events suppressed. Whichever is chosen, the acceptance criterion is that **one ordinary Undo restores the pre-insertion state in a single step** in each supported app, because per-scalar events can otherwise register as separate undo groups and leave the user pressing Undo repeatedly. Verify this against the same fixtures used to compare the two transports, including the longest bundled sequence, and treat a backend that cannot meet it as unsupported for those sequences rather than shipping a multi-step Undo.
+
 Do not automatically paste after an unconfirmed Unicode dispatch: the original event may have succeeded and a retry could duplicate the character. Choose a validated backend ahead of time, using an explicit per-app override only when needed. Unsupported apps retain the Copy action.
 
 Do not set a text field's complete AX value to insert one character; that risks replacing unrelated content, losing formatting, and bypassing normal editing/Undo behaviour.
@@ -526,7 +528,7 @@ Focus automated tests on decisions with meaningful independent expected outcomes
 - Activation replacement: correct UTF-16 ranges after emoji, fast source/panel query splits in every position, source edits before commit, failed selection preparation, Escape/Copy preserving source activation text, and no blind deletion or duplicate transport.
 - Transport selection: choose a method before dispatch; no implicit second transport after an unconfirmed first dispatch.
 - Clipboard coordination: newer user copy is never overwritten; failed snapshot does not destroy contents; later sessions cannot restore older data.
-- Unicode round trips: BMP symbols, supplementary scalars, variation selectors, skin tones, ZWJ sequences, flags, keycaps, and combining marks.
+- Unicode round trips: BMP symbols, supplementary scalars, variation selectors, skin tones, ZWJ sequences, flags, keycaps, and combining marks. Include the round trip in both directions — exact string inserted, and one Undo restoring the previous state in a single step — since a per-scalar dispatch can round-trip the text yet fragment Undo.
 - Search: a fixed corpus with independently chosen expected results, alias punctuation, code-point parsing, stable ranking, and cancellation of old queries.
 - Persistence: first-run seeding, intentionally empty favourites, ordering, migration, unknown IDs, interrupted writes, and corrupt-file recovery.
 
@@ -543,7 +545,7 @@ Use a small native test harness for known AX fields and editing behaviour. UI te
 | P0 | Source app in full screen with independent display Spaces | Picker appears in the current context without a Space switch. |
 | P0 | Escape or outside click | No document/clipboard change; typing resumes in the still-current source. |
 | P0 | Selected text in the source | One insertion replaces the selected range; unrelated text and formatting remain intact. |
-| P0 | Arrow, non-BMP emoji, skin tone, ZWJ, flag, and keycap fixtures | Exact complete strings are inserted; Undo behaves normally in supported apps. |
+| P0 | Arrow, non-BMP emoji, skin tone, ZWJ, flag, and keycap fixtures | Exact complete strings are inserted, and one Undo restores the previous state in a single step in supported apps. |
 | P0 | Double Enter, Enter plus click, or held shortcut | At most one insertion or toggle transition occurs. |
 | P0 | User changes app/window/field while picker is open | Session cancels or becomes copy-only; text is never sent to the new target. |
 | P0 | Source quits, document closes, or AX element becomes stale | No insertion and no forced reactivation of an unrelated app. |
