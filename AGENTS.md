@@ -56,8 +56,11 @@ error as it happens.
 `lkm-build` / `lkm-release` engines (the `release-tool` repo); the build engine
 delegates assembly to `scripts/build-app.sh` via the `swiftpm` kind, which
 also regenerates the icon via `scripts/make-icon.swift` from the committed
-master (`media-sources/icon.swift` → `assets/Charms-icon.png`). Releases are
-cut by tagging: `scripts/release.sh X.Y.Z --push`. See `CICD.md`.
+master, `assets/Charms-icon.png`. The master is the artwork in
+`media-sources/icon.png` placed on the macOS icon grid; after replacing the
+artwork, run `swift media-sources/icon.swift media-sources/icon.png
+assets/Charms-icon.png` and commit the result. Releases are cut by tagging:
+`scripts/release.sh X.Y.Z --push`. See `CICD.md`.
 
 Note that `scripts/build.sh` reveals the built app in Finder. Automated
 sessions should call `scripts/build-app.sh` directly.

@@ -53,7 +53,8 @@ cp "$PROJECT_ROOT/THIRD_PARTY_NOTICES.md" "$APP_PATH/Contents/Resources/THIRD_PA
 printf 'APPL????' > "$APP_PATH/Contents/PkgInfo"
 
 # Regenerate the iconset from the committed master so the shipped icon always
-# matches media-sources/icon.swift → assets/Charms-icon.png.
+# matches assets/Charms-icon.png, which media-sources/icon.swift makes from the
+# artwork in media-sources/icon.png.
 swift "$PROJECT_ROOT/scripts/make-icon.swift" "$PROJECT_ROOT/assets/Charms-icon.png" "$BUILD_DIR/Charms.iconset"
 /usr/bin/iconutil -c icns "$BUILD_DIR/Charms.iconset" -o "$APP_PATH/Contents/Resources/AppIcon.icns"
 
