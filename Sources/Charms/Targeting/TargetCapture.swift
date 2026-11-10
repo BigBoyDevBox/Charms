@@ -184,29 +184,44 @@ final class TargetCaptureService: @unchecked Sendable {
     /// Electron 45 on macOS 27, the first reading after the call still shows
     /// the old range and the new one arrives about 3 ms later. The bound is
     /// generous because a busy page takes longer, and because giving up
-    /// means the character is not inserted.
+    /// means the character is not inserted. It is not exact: a reading that
+    /// is under way when it passes may take the messaging timeout to return.
     private static let selectionDeadline: TimeInterval = 0.3
     private static let selectionPollInterval: TimeInterval = 0.004
+
+    enum SelectionResult: Sendable {
+        case selected
+        /// The field did not report the selection in time.
+        case refused
+        /// The field has the selection but no longer the keyboard.
+        case focusMoved
+    }
 
     /// Selects exactly the marker and the prefix typed after it, and
     /// confirms that the selection took. Only a selection the field itself
     /// reports counts: the insertion that follows replaces whatever is
     /// selected.
-    func select(in target: CapturedTarget, location: Int, length: Int, completion: @escaping @MainActor (Bool) -> Void) {
+    ///
+    /// The insertion goes to the process, not to a field, so the field must
+    /// also still have the keyboard once the wait is over. A field that
+    /// lost it goes on reporting its selection, and the text would land in
+    /// whichever field took over.
+    func select(in target: CapturedTarget, location: Int, length: Int, completion: @escaping @MainActor (SelectionResult) -> Void) {
         queue.async {
-            var succeeded = false
+            var result = SelectionResult.refused
             if let element = target.element, AX.setSelectedRange(element, location: location, length: length) {
                 let deadline = ProcessInfo.processInfo.systemUptime + Self.selectionDeadline
                 while true {
                     if let now = AX.range(element, kAXSelectedTextRangeAttribute), now.location == location, now.length == length {
-                        succeeded = true
+                        let focused = AX.element(AX.application(target.processID), kAXFocusedUIElementAttribute)
+                        result = focused.map { CFEqual($0, element) } == true ? .selected : .focusMoved
                         break
                     }
                     guard ProcessInfo.processInfo.systemUptime < deadline else { break }
                     Thread.sleep(forTimeInterval: Self.selectionPollInterval)
                 }
             }
-            Task { @MainActor in completion(succeeded) }
+            Task { @MainActor in completion(result) }
         }
     }
 

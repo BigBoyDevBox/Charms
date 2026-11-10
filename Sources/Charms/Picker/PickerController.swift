@@ -451,12 +451,17 @@ final class PickerController: PickerSearchDelegate {
                 self.perform(self.machine.handle(.validated(id, .copyOnly)))
                 return
             }
-            self.capture.select(in: target, location: location, length: length) { [weak self] selected in
+            self.capture.select(in: target, location: location, length: length) { [weak self] result in
                 guard let self, self.session?.id == id, self.machine.state == .validating else { return }
-                if !selected {
+                switch result {
+                case .selected:
+                    break
+                case .refused:
                     self.services.diagnostics.record(.insertion, "blocked-selection-refused", application: target.bundleIdentifier)
+                case .focusMoved:
+                    self.services.diagnostics.record(.insertion, "blocked-focus-moved", application: target.bundleIdentifier)
                 }
-                self.perform(self.machine.handle(.validated(id, selected ? .valid : .copyOnly)))
+                self.perform(self.machine.handle(.validated(id, result == .selected ? .valid : .copyOnly)))
             }
         }
     }
