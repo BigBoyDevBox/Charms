@@ -59,8 +59,10 @@ you are typing unless an app requests it. Charms can then only copy. The
 first time it meets such an application it asks whether to turn this on for
 that application. If you agree, Charms requests it then and each time the
 application starts; it takes about two seconds to take effect, and the
-application may use a little more memory and processor time. Your answers
-are listed under Settings, General, where Ask Again forgets them.
+application may use a little more memory and processor time. Switching to
+another application while the question is open does not pull you back.
+Your remembered answers are listed under Settings, General, where Ask Again
+forgets all answers, including a temporary Not Now in the current run.
 
 ### Permission
 

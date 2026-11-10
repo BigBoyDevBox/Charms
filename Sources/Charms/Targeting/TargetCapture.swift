@@ -44,6 +44,9 @@ struct MarkerReading: Sendable {
 /// answer, which the caller then ignores once its deadline has passed.
 final class TargetCaptureService: @unchecked Sendable {
     private let queue = DispatchQueue(label: "ch.lkmc.Charms.accessibility", qos: .userInteractive)
+    /// For the seconds-long wait in `requestFields`, which must not hold up
+    /// the capture queue.
+    private let fieldsQueue = DispatchQueue(label: "ch.lkmc.Charms.field-access", qos: .userInitiated)
 
     init() {
         AX.applyMessagingTimeout()
@@ -239,10 +242,10 @@ final class TargetCaptureService: @unchecked Sendable {
     /// Asks an application to switch its accessibility tree on and waits
     /// for it to report a focused element. Reports whether it did.
     ///
-    /// The wait runs off the capture queue, which has to stay free for the
-    /// next session.
+    /// The wait runs on a queue of its own: the capture queue has to stay
+    /// free for the next session. It uses its own application element.
     func requestFields(processID: pid_t, completion: @escaping @MainActor (Bool) -> Void) {
-        DispatchQueue.global(qos: .userInitiated).async {
+        fieldsQueue.async {
             let application = AX.application(processID)
             var appeared = false
             if AX.requestManualAccessibility(application) {

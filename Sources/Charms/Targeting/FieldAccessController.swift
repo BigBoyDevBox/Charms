@@ -22,8 +22,9 @@ final class FieldAccessController {
         case userMovedOn
     }
 
-    /// True while the question is on screen. Charms is the active
-    /// application then, and no picker session may start.
+    /// True from the moment a question is decided on until it is answered.
+    /// Charms is the active application then, and no picker session may
+    /// start.
     private(set) var isAsking = false
 
     init(services: AppServices, capture: TargetCaptureService) {
@@ -55,6 +56,20 @@ final class FieldAccessController {
         capture.requestFieldsIfHidden(processID: target.processID)
     }
 
+    /// Announces a question that `offer` will show in a moment. The caller
+    /// ends its session in the same turn; without this a key press arriving
+    /// before the question is on screen could open the picker in front of it.
+    func prepareToAsk() {
+        isAsking = true
+    }
+
+    /// Forgets every answer, those kept for this run included, so that each
+    /// application is asked about again when Charms next meets it.
+    func forgetAnswers() {
+        asked = []
+        services.preferences.update { FieldAccess.forgetAnswers(in: &$0) }
+    }
+
     /// Asks the user about the application, records the answer and carries
     /// it out. `completion` runs once the application has the keyboard back
     /// and, if the user agreed, has had time to report its fields.
@@ -63,7 +78,8 @@ final class FieldAccessController {
     ///   while the user is typing: keys typed after `::` land in the
     ///   question and must not answer it.
     func offer(for target: CapturedTarget, returnTurnsOn: Bool, completion: @escaping @MainActor (Result) -> Void) {
-        guard let identifier = target.bundleIdentifier, !isAsking else {
+        guard let identifier = target.bundleIdentifier else {
+            isAsking = false
             completion(.userMovedOn)
             return
         }
@@ -84,15 +100,44 @@ final class FieldAccessController {
         alert.showsSuppressionButton = true
         alert.suppressionButton?.title = "Do not ask again for \(name)"
 
+        // The question does not hold the user: they may go on to another
+        // application and answer later, or work there while it waits.
+        var wentTo: NSRunningApplication?
+        let own = ProcessInfo.processInfo.processIdentifier
+        let activations = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: nil
+        ) { notification in
+            guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+            let processID = application.processIdentifier
+            if processID == target.processID {
+                wentTo = nil
+            } else if processID != own {
+                wentTo = application
+            }
+        }
+
         // An accessory app has to come to the front to show a question.
         NSApp.activate(ignoringOtherApps: true)
         let response = alert.runModal()
+        NSWorkspace.shared.notificationCenter.removeObserver(activations)
         isAsking = false
 
         let answer: FieldAccess.Answer = response == .alertFirstButtonReturn
             ? .turnOn
             : .decline(remember: alert.suppressionButton?.state == .on)
         services.preferences.update { FieldAccess.record(answer, for: identifier, in: &$0) }
+
+        if let wentTo, !wentTo.isTerminated {
+            // The user had moved on. The answer stands, but the keyboard
+            // goes back to where they were, and no picker opens there.
+            services.diagnostics.record(.capture, answer == .turnOn ? "field-access-on-later" : "field-access-declined", application: identifier)
+            if answer == .turnOn {
+                capture.requestFieldsIfHidden(processID: target.processID)
+            }
+            wentTo.activate()
+            completion(.userMovedOn)
+            return
+        }
 
         // Typing continues where it was.
         let source = NSRunningApplication(processIdentifier: target.processID)

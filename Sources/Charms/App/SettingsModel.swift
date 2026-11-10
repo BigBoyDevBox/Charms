@@ -19,6 +19,9 @@ final class SettingsModel: ObservableObject {
 
     var onCapabilitiesChanged: (() -> Void)?
     var onShowOnboarding: (() -> Void)?
+    /// Forgets the answers about applications that hide their text fields,
+    /// including those the picker keeps only for this run.
+    var onForgetFieldAccessAnswers: (() -> Void)?
 
     init(services: AppServices, hotKeys: HotKeyService) {
         self.services = services
@@ -90,7 +93,7 @@ final class SettingsModel: ObservableObject {
 
     /// Every application is asked about again when Charms next meets it.
     func forgetFieldAccessAnswers() {
-        services.preferences.update { FieldAccess.forgetAnswers(in: &$0) }
+        onForgetFieldAccessAnswers?()
     }
 
     func setTypedTrigger(_ enabled: Bool) {

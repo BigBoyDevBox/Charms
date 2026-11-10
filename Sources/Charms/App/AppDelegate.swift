@@ -128,6 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let model = SettingsModel(services: services, hotKeys: hotKeys)
             model.onCapabilitiesChanged = { [weak self] in self?.refreshCapabilities() }
             model.onShowOnboarding = { [weak self] in self?.showOnboarding() }
+            model.onForgetFieldAccessAnswers = { [weak self] in self?.picker?.forgetFieldAccessAnswers() }
             settings = SettingsWindowController(model: model)
         }
         settings?.model.refresh()

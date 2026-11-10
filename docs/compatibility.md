@@ -84,6 +84,21 @@ With a bare Electron 45.2.3 window, started with its accessibility tree off:
   after restarting Charms there was no question. Settings showed the answer,
   and Ask Again forgot it.
 
+Follow-up dialog regressions were checked by hand on the same system, because
+these checks need an application with a dormant accessibility tree and the
+native question, which the end-to-end harness does not emulate:
+
+- Turn On, then immediately Control-P and type a query while the fields are
+  becoming available. After waiting six seconds, that picker and its query
+  remain open. Before the fix, the delayed answer closed the new picker.
+- While the question is open, activate the native harness, then answer Not
+  Now. The harness keeps the keyboard and no picker opens. Before the fix,
+  Charms brought Electron back and opened a copy-only picker there.
+- Answer Not Now without ticking the box, then use Ask Again in Settings
+  (with another application's remembered answer making the button visible).
+  Control-P in Electron asks again in the same Charms run. This checks the
+  temporary answers as well as the stored ones.
+
 ### Displays
 
 With TextEdit on the second display (to the left of the main one, so at

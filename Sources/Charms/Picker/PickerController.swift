@@ -129,6 +129,11 @@ final class PickerController: PickerSearchDelegate {
         }
     }
 
+    /// "Ask Again" in Settings.
+    func forgetFieldAccessAnswers() {
+        fieldAccess.forgetAnswers()
+    }
+
     /// Favourites, recents or the catalogue changed underneath the picker.
     func contentDidChange() {
         guard machine.isPickerVisible else { return }
@@ -256,6 +261,7 @@ final class PickerController: PickerSearchDelegate {
         case .offer:
             // The attempt ends here: a question in front of an open picker
             // would leave two things waiting for the keyboard.
+            fieldAccess.prepareToAsk()
             perform(machine.handle(invocation == .typedMarker ? .markerUnconfirmed(id) : .cancel))
             DispatchQueue.main.async { [weak self] in
                 MainActor.assumeIsolated {
@@ -264,8 +270,12 @@ final class PickerController: PickerSearchDelegate {
                         // with insertion if the answer made that possible,
                         // for copying otherwise. A typed marker asked for
                         // nothing that can still be given.
-                        guard invocation != .typedMarker, result != .userMovedOn else { return }
-                        self?.invoke(invocation)
+                        //
+                        // Only when nothing is open: the wait for the fields
+                        // takes seconds, and a picker the user opened
+                        // meanwhile would be closed by a second invocation.
+                        guard let self, invocation != .typedMarker, result != .userMovedOn, self.machine.isIdle else { return }
+                        self.invoke(invocation)
                     }
                 }
             }

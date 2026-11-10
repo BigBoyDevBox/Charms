@@ -50,7 +50,9 @@ session flow, insertion or the typed trigger. Three environment variables
 exist for such checks: `CHARMS_HOME` moves all storage, preferences included,
 into a directory of your choice; `CHARMS_SKIP_ONBOARDING` suppresses the
 welcome window; `CHARMS_TRACE` writes each diagnostics entry to standard
-error as it happens.
+error as it happens. The hidden-field question also needs the manual Electron
+checks in `docs/compatibility.md`; the native harness does not emulate a
+dormant accessibility tree.
 
 `scripts/build.sh` / `scripts/release.sh` are thin stubs over the shared
 `lkm-build` / `lkm-release` engines (the `release-tool` repo); the build engine
