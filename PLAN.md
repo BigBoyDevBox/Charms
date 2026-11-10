@@ -47,7 +47,7 @@ The repository currently contains the project license and no application impleme
 | Typed trigger | Optional `::` recognition, enabled explicitly with any required Input Monitoring access; the shortcut remains available independently. |
 | Distribution | Direct distribution, initially through GitHub releases; signed and notarized for public builds. |
 | Runtime dependencies | Prefer Apple frameworks and a bundled local catalogue; introduce external packages only for a concrete unmet need. |
-| Language | English interface and search annotations initially; use localizable strings and keep the data format ready for additional locales. |
+| Interface language | English interface and search annotations initially; use localizable strings and keep the data format ready for additional locales. |
 | Storage | Local settings and versioned local files; no server or synchronization service. |
 
 ### Included in the first usable release
@@ -290,9 +290,11 @@ Represent lifecycle explicitly:
 
 ```text
 idle -> capturing -> browsing -> validating -> dispatching -> idle
-                         |           |
-                         +-> cancel -+
-                         +-> copy -> idle
+         |            |           |
+         +------------+-----------+
+                      |
+                      v
+          cancel or copy -> idle
 ```
 
 - Only one session and one insertion dispatch can be active.
@@ -547,7 +549,7 @@ Focus automated tests on decisions with meaningful independent expected outcomes
 - Search: a fixed corpus with independently chosen expected results, alias punctuation, code-point parsing, stable ranking, and cancellation of old queries.
 - Persistence: first-run seeding, intentionally empty favourites, ordering, migration, unknown IDs, interrupted writes, and corrupt-file recovery.
 
-Use a small native test harness for known AX fields and editing behaviour. UI tests should verify a few critical flows, not mirror every view implementation. Hosted CI can build and test pure logic; it cannot prove real multiple-display or TCC permission behaviour.
+Use a small native test harness for known AX fields and editing behaviour. UI tests should verify a few critical flows, not mirror every view implementation. Hosted CI can build and test pure logic; it cannot prove real multiple-display or TCC permission behaviour. Run the UI/harness tests on a self-hosted macOS runner with an active window server.
 
 ### 12.2 Manual acceptance matrix
 
@@ -659,12 +661,15 @@ These references establish available platform/data capabilities. The placement, 
 - [Apple: Accessibility trust](https://developer.apple.com/documentation/applicationservices/1459186-axisprocesstrustedwithoptions).
 - [Apple: workspace and frontmost application](https://developer.apple.com/documentation/appkit/nsworkspace).
 - [Apple: nonactivating panels](https://developer.apple.com/documentation/appkit/nswindow/stylemask-swift.struct/nonactivatingpanel).
-- [Apple: screen containing keyboard focus](https://developer.apple.com/documentation/appkit/nsscreen/main).
+- [Apple: screen containing keyboard focus](https://developer.apple.com/documentation/appkit/nsscreen/main) — consult only before the picker becomes key; afterwards rely on captured geometry (§6.2).
 - [Apple: window collection behaviour](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct).
 - [Apple: Unicode keyboard events and framework limitations](https://developer.apple.com/documentation/coregraphics/cgevent/keyboardsetunicodestring%28stringlength%3Aunicodestring%3A%29).
 - [Apple: process-addressed event dispatch](https://developer.apple.com/documentation/coregraphics/cgevent/posttopid%28_%3A%29).
 - [Apple: preflight keyboard-listening access](https://developer.apple.com/documentation/coregraphics/cgpreflightlisteneventaccess%28%29).
 - [Apple: request keyboard-listening access](https://developer.apple.com/documentation/coregraphics/cgrequestlisteneventaccess%28%29).
+- [Apple: creating an event tap](https://developer.apple.com/documentation/coregraphics/cgeventtapcreate).
+- [Apple: creating an accessibility observer](https://developer.apple.com/documentation/applicationservices/axobservercreate(_:callback:)).
+- [Apple: event source key state (physical modifier state)](https://developer.apple.com/documentation/coregraphics/cgeventsourcekeystate(_:_:)).
 - [Apple: pasteboard change count](https://developer.apple.com/documentation/appkit/nspasteboard/changecount).
 - [Apple: login item service](https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp).
 - [Electron: accessibility integration](https://www.electronjs.org/docs/latest/tutorial/accessibility).
