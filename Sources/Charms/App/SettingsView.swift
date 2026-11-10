@@ -14,12 +14,17 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     func show() {
         if window == nil {
             let hosting = NSHostingController(rootView: SettingsView(model: model, preferences: model.services.preferences))
+            // Only the minimum comes from the content. With the default
+            // options the window would also be pinned to the content's
+            // ideal size and could not be resized.
+            hosting.sizingOptions = [.minSize]
             let window = NSWindow(contentViewController: hosting)
             window.title = "Charms Settings"
-            window.styleMask = [.titled, .closable, .miniaturizable]
+            window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             window.isReleasedWhenClosed = false
             window.delegate = self
-            window.setContentSize(NSSize(width: 520, height: 430))
+            window.contentMinSize = SettingsView.minimumSize
+            window.setContentSize(SettingsView.defaultSize)
             window.center()
             self.window = window
         }
@@ -33,6 +38,11 @@ struct SettingsView: View {
     @ObservedObject var model: SettingsModel
     @ObservedObject var preferences: PreferencesStore
 
+    /// Tall enough to show each tab whole, so that nothing has to be
+    /// scrolled to be found. The longest are General and Applications.
+    static let defaultSize = NSSize(width: 600, height: 680)
+    static let minimumSize = NSSize(width: 520, height: 400)
+
     var body: some View {
         TabView {
             general.tabItem { Label("General", systemImage: "gearshape") }
@@ -41,7 +51,7 @@ struct SettingsView: View {
             data.tabItem { Label("Data", systemImage: "tray.full") }
         }
         .padding(16)
-        .frame(width: 520, height: 430)
+        .frame(minWidth: Self.minimumSize.width, maxWidth: .infinity, minHeight: Self.minimumSize.height, maxHeight: .infinity)
     }
 
     // MARK: General
@@ -64,7 +74,7 @@ struct SettingsView: View {
                 if let message = model.shortcutMessage {
                     Text(message).font(.callout).foregroundStyle(.orange)
                 }
-                Text("The shortcut works in every application and takes precedence over what that key does there. Applications that should keep it can be listed under Applications. If another utility uses the same shortcut, the one started first gets it: quit that one or record a different shortcut.")
+                Text("The shortcut works in every application and overrides what the same keys do there. To turn it off for an application that needs those keys, add the application under Applications. If another utility uses the same shortcut, the one started first gets it: quit that one or record a different shortcut.")
                     .font(.callout).foregroundStyle(.secondary)
             }
             Section {
@@ -159,7 +169,7 @@ struct SettingsView: View {
 
     private var applications: some View {
         Form {
-            Section("Leave the shortcut to these applications") {
+            Section("Turn off the shortcut in these applications") {
                 ApplicationList(
                     identifiers: Binding(
                         get: { preferences.value.shortcutPassThrough },
@@ -167,7 +177,7 @@ struct SettingsView: View {
                     ),
                     model: model
                 )
-                Text("While one of these is in front, the shortcut does what it does in that application, for example previous line in a terminal.")
+                Text("While one of these applications is in front, the shortcut does not open Charms and its keys reach the application instead. Add applications that need those keys themselves, such as a terminal, where ⌃P brings back the previous command.")
                     .font(.callout).foregroundStyle(.secondary)
             }
             Section("Insert by pasting in these applications") {
@@ -222,6 +232,9 @@ private struct ApplicationList: View {
     @State private var selection: String?
     @State private var typed = ""
 
+    private static let rowHeight: CGFloat = 24
+    private static let visibleRows: CGFloat = 5
+
     private var sorted: [String] {
         identifiers.sorted { Self.title($0).localizedCaseInsensitiveCompare(Self.title($1)) == .orderedAscending }
     }
@@ -239,7 +252,13 @@ private struct ApplicationList: View {
                     }
                 }
             }
-            .frame(height: 112)
+            // A box of its own with striped rows: inside a grouped form a
+            // plain list has no edge, and a row cut off by the bottom of
+            // the list looks like a drawing fault instead of more to scroll.
+            .listStyle(.bordered)
+            .alternatingRowBackgrounds()
+            .environment(\.defaultMinListRowHeight, Self.rowHeight)
+            .frame(height: Self.rowHeight * Self.visibleRows)
             .overlay {
                 if identifiers.isEmpty {
                     Text("None").foregroundStyle(.tertiary)
