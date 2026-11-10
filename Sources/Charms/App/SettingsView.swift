@@ -64,7 +64,7 @@ struct SettingsView: View {
                 if let message = model.shortcutMessage {
                     Text(message).font(.callout).foregroundStyle(.orange)
                 }
-                Text("The shortcut works in every application and takes precedence over what that key does there. Applications that should keep it can be listed under Applications.")
+                Text("The shortcut works in every application and takes precedence over what that key does there. Applications that should keep it can be listed under Applications. If another utility uses the same shortcut, the one started first gets it: quit that one or record a different shortcut.")
                     .font(.callout).foregroundStyle(.secondary)
             }
             Section {

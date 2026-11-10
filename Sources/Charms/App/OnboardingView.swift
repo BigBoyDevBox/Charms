@@ -1,5 +1,6 @@
 import AppKit
 import CharmsCore
+import Combine
 import SwiftUI
 
 /// The first-launch window: what Charms does, and the one choice between
@@ -11,17 +12,24 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     private let state = OnboardingState()
     private var window: NSWindow?
     private var timer: Timer?
+    private var shortcutObservation: AnyCancellable?
 
     init(services: AppServices, onFinished: @escaping () -> Void) {
         self.services = services
         self.onFinished = onFinished
+        super.init()
+        // The window names the shortcut. It follows the setting, so that it
+        // never tells the user to press a combination that was just changed.
+        shortcutObservation = services.preferences.$value
+            .map { HotKeyService.displayString(for: $0.shortcut) }
+            .removeDuplicates()
+            .sink { [state] in state.shortcut = $0 }
     }
 
     func show() {
         if window == nil {
             let view = OnboardingView(
                 state: state,
-                shortcut: HotKeyService.displayString(for: services.preferences.value.shortcut),
                 enable: { [weak self] in self?.enableInsertion() },
                 finish: { [weak self] in self?.finish() }
             )
@@ -74,11 +82,11 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
 final class OnboardingState: ObservableObject {
     @Published var canInsert = false
     @Published var isWaiting = false
+    @Published var shortcut = ""
 }
 
 private struct OnboardingView: View {
     @ObservedObject var state: OnboardingState
-    let shortcut: String
     let enable: () -> Void
     let finish: () -> Void
 
@@ -86,7 +94,7 @@ private struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Charms")
                 .font(.largeTitle.weight(.semibold))
-            Text("Press \(shortcut) wherever you are typing. Type a name such as arrow, check or heart, and press Return. The character goes where your cursor was.")
+            Text("Press \(state.shortcut) wherever you are typing. Type a name such as arrow, check or heart, and press Return. The character goes where your cursor was.")
                 .fixedSize(horizontal: false, vertical: true)
             Text("To put characters into other applications, Charms needs the Accessibility permission, which macOS 27 calls Device Control and Data Access. It uses it to find the field you are typing in, so the picker can open next to it, and to send the chosen character there. It does not read your documents.")
                 .foregroundStyle(.secondary)
