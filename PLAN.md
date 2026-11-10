@@ -277,7 +277,7 @@ When Accessibility is unavailable (browse/copy mode) or returns no focused windo
 - Accept a zero-width caret with a meaningful height. Reject non-finite values, implausible geometry, stale offscreen rectangles, and bounds unrelated to any connected screen.
 - Prefer below the caret with a small gap, flip above if necessary, and clamp to the selected display's `visibleFrame` with an approximately 12-point margin.
 - Account for the menu bar, Dock, notches, small displays, and panel size changes. Keep the picker visible and avoid covering the insertion line when geometry allows.
-- On display disconnection or a Space change during a session, cancel safely unless the session can be revalidated and repositioned without changing its target. Do not silently switch to another target.
+- On display disconnection or a Space change during a session (observed through `NSApplication.didChangeScreenParametersNotification` or `CGDisplayRegisterReconfigurationCallback`), cancel safely unless the session can be revalidated and repositioned without changing its target. Do not silently switch to another target.
 
 ### 6.4 Panel lifecycle
 
@@ -707,6 +707,8 @@ These references establish available platform/data capabilities. The placement, 
 - [Apple: nonactivating panels](https://developer.apple.com/documentation/appkit/nswindow/stylemask-swift.struct/nonactivatingpanel).
 - [Apple: screen containing keyboard focus](https://developer.apple.com/documentation/appkit/nsscreen/main) — consult only before the picker becomes key; afterwards rely on captured geometry (§6.2).
 - [Apple: window collection behaviour](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct).
+- [Apple: screen parameters change notification](https://developer.apple.com/documentation/appkit/nsapplication/didchangescreenparametersnotification).
+- [Apple: display reconfiguration callback](https://developer.apple.com/documentation/coregraphics/cgdisplayregisterreconfigurationcallback%28_%3A_%3A%29).
 - [Apple: Unicode keyboard events and framework limitations](https://developer.apple.com/documentation/coregraphics/cgevent/keyboardsetunicodestring%28stringlength%3Aunicodestring%3A%29).
 - [Apple: process-addressed event dispatch](https://developer.apple.com/documentation/coregraphics/cgevent/posttopid%28_%3A%29).
 - [Apple: preflight event-synthesizing access](https://developer.apple.com/documentation/coregraphics/cgpreflightposteventaccess%28%29).
