@@ -155,6 +155,10 @@ final class Host: NSObject, NSApplicationDelegate, NSWindowDelegate {
         case "selectionDelay":
             guard let milliseconds = request["ms"] as? Double else { return "selectionDelay needs ms" }
             editor.accessibilitySelectionDelay = milliseconds < 0 ? nil : milliseconds / 1000
+            // With `--target field`, the text field takes the keyboard the
+            // moment the selection is asked for: focus moves inside the
+            // application while the selection is still on its way.
+            editor.focusThiefOnSelection = (request["target"] as? String) == "field" ? field : nil
         case "activate":
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
@@ -228,8 +232,13 @@ final class HostTextView: NSTextView {
     /// about 3 ms later. Nil drops the request, for a field that accepts the
     /// call and never honours it.
     var accessibilitySelectionDelay: TimeInterval? = 0
+    /// A view that takes the keyboard when a selection is asked for.
+    weak var focusThiefOnSelection: NSView?
 
     override func setAccessibilitySelectedTextRange(_ range: NSRange) {
+        if let thief = focusThiefOnSelection {
+            window?.makeFirstResponder(thief)
+        }
         guard let delay = accessibilitySelectionDelay else { return }
         guard delay > 0 else {
             super.setAccessibilitySelectedTextRange(range)

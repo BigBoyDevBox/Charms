@@ -37,7 +37,8 @@ enum Output {
                [--x N --y N] [--ms N] [--timeout seconds]
               Asks the running host to do something and prints its state.
               selectionDelay makes the editor apply a selection set through
-              Accessibility N ms late, or never when N is negative.
+              Accessibility N ms late, or never when N is negative; with
+              --target field the text field takes the keyboard meanwhile.
           type --text S [--gap-ms N]
               Types the text as Unicode key events, one character at a time.
           key --name return|enter|tab|space|delete|escape|left|right|up|down

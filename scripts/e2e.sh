@@ -379,6 +379,27 @@ scenario_typed_trigger_late_selection() {
     expect "text" "$(editor)" "x →"
 }
 
+scenario_typed_trigger_focus_moves_during_selection() {
+    # While the selection is on its way, another field of the same
+    # application takes the keyboard. The first field still ends up with the
+    # colons selected, but nothing may be sent: it would land in the other.
+    reset "x "
+    send --op selectionDelay --ms 60 --target field >/dev/null
+    local from; from="$(mark)" blocked=0
+    typing "::arrow"
+    await "presented-" "$from" || { send --op selectionDelay --ms 0 >/dev/null; FAILURE="typing :: did not open the picker"; return 1; }
+    press return
+    await "blocked-" "$from" || blocked=1
+    sleep 0.3
+    press escape
+    await "outcome-" "$from"
+    send --op selectionDelay --ms 0 >/dev/null
+    local other; other="$(send --op state | field field)"
+    expect "the other field" "$other" "" || return 1
+    (( blocked == 0 )) || { FAILURE="the insertion was not blocked"; return 1; }
+    expect "text" "$(editor)" "x ::"
+}
+
 scenario_typed_trigger_selection_refused() {
     # A field that accepts the selection call and never honours it: nothing
     # is sent, the picker offers Copy, and Escape leaves the text as typed.
@@ -446,7 +467,8 @@ scenario_password_field() {
 
 ALL=(insert escape replace_selection sequence navigate first_selected copy placement click_cell click_outside
      cancel_while_held typed_trigger typed_trigger_first_selected typed_trigger_late_selection
-     typed_trigger_selection_refused typed_trigger_fast typed_trigger_escape colons_inside_a_word password_field
+     typed_trigger_focus_moves_during_selection typed_trigger_selection_refused typed_trigger_fast
+     typed_trigger_escape colons_inside_a_word password_field
      paste_backend pass_through)
 
 # The preferences a scenario runs with. Charms is restarted when they change.

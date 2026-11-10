@@ -22,7 +22,7 @@ One system so far, on 10 November 2026:
 - **End to end:** `scripts/e2e.sh` drives the built app with real key and
   mouse events against the `CharmsHarness` window (an `NSTextView`, an
   `NSTextField` and an `NSSecureTextField`) and compares the text that
-  arrives, scalar for scalar. All 21 scenarios passed.
+  arrives, scalar for scalar. All 22 scenarios passed.
 - **By hand:** the built app in the applications below, driven with the same
   synthetic keys, with screenshots and the app's own trace (`CHARMS_TRACE`).
 
@@ -43,6 +43,7 @@ One system so far, on 10 November 2026:
 | `typed_trigger`, `typed_trigger_fast` | `::arrow` and Return replace the colons and the query, also when typed with 6 ms between keys. |
 | `typed_trigger_first_selected` | `::`, Tab and Return replace the colons with the first favourite. |
 | `typed_trigger_late_selection` | A field that applies a selection made through Accessibility 30 ms after the call, as Chromium does: the colons are still replaced. |
+| `typed_trigger_focus_moves_during_selection` | While such a late selection is on its way, another field of the same application takes the keyboard: nothing is sent, and that field stays empty. |
 | `typed_trigger_selection_refused` | A field that accepts that call and never honours it: nothing is sent, the picker offers Copy, and Escape leaves the colons. |
 | `typed_trigger_escape` | Escape after `::ar` leaves `::` as typed. |
 | `colons_inside_a_word` | `std::cout` does not open the picker. |
