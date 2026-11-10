@@ -88,6 +88,11 @@ final class SettingsModel: ObservableObject {
         launchState = LaunchAtLogin.state
     }
 
+    /// Every application is asked about again when Charms next meets it.
+    func forgetFieldAccessAnswers() {
+        services.preferences.update { FieldAccess.forgetAnswers(in: &$0) }
+    }
+
     func setTypedTrigger(_ enabled: Bool) {
         services.preferences.update { $0.typedTriggerEnabled = enabled }
         onCapabilitiesChanged?()
@@ -121,6 +126,7 @@ final class SettingsModel: ObservableObject {
             ("typed-trigger", preferences.typedTriggerEnabled ? "on" : "off"),
             ("paste-applications", String(preferences.pasteApplications.count)),
             ("pass-through-applications", String(preferences.shortcutPassThrough.count)),
+            ("field-access-applications", String(preferences.fieldAccessApplications.count)),
             ("displays", String(NSScreen.screens.count)),
             ("separate-spaces", NSScreen.screensHaveSeparateSpaces ? "yes" : "no")
         ]

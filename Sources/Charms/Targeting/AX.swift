@@ -113,6 +113,21 @@ enum AX {
         return AXUIElementSetAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, value) == .success
     }
 
+    /// The switch Chromium and Electron applications offer for their
+    /// accessibility tree. Other applications do not have the attribute.
+    private static let manualAccessibilityAttribute = "AXManualAccessibility"
+
+    /// Whether the application's accessibility tree is switched on. Nil
+    /// when the application has no such switch, which is the usual case.
+    static func manualAccessibility(_ application: AXUIElement) -> Bool? {
+        (value(application, manualAccessibilityAttribute) as? NSNumber)?.boolValue
+    }
+
+    /// Switches the tree on. It stays on until the application quits.
+    static func requestManualAccessibility(_ application: AXUIElement) -> Bool {
+        AXUIElementSetAttributeValue(application, manualAccessibilityAttribute as CFString, kCFBooleanTrue) == .success
+    }
+
     static func processID(of element: AXUIElement) -> pid_t? {
         var processID: pid_t = 0
         return AXUIElementGetPid(element, &processID) == .success ? processID : nil

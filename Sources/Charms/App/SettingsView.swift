@@ -99,6 +99,7 @@ struct SettingsView: View {
                      ? "Charms can find the field you are typing in and put the chosen character there."
                      : "Charms can browse and copy. To insert characters where you type, press Enable Insertion and switch on Charms in the System Settings list it leads to. If Charms is already switched on there, switch it off and on again.")
                     .font(.callout).foregroundStyle(.secondary)
+                fieldAccess
             }
             Section {
                 Toggle("Open Charms at login", isOn: Binding(
@@ -128,6 +129,34 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    /// The answers given when Charms offered to have an application report
+    /// its text fields. Shown only once there is one: the offer itself
+    /// explains the matter when it first comes up.
+    @ViewBuilder private var fieldAccess: some View {
+        let allowed = Self.names(preferences.value.fieldAccessApplications)
+        let declined = Self.names(preferences.value.fieldAccessDeclined)
+        if !allowed.isEmpty || !declined.isEmpty {
+            LabeledContent("Applications that hide their text fields") {
+                Button("Ask Again") { model.forgetFieldAccessAnswers() }
+            }
+            if !allowed.isEmpty {
+                Text("Charms requests the place you are typing in from \(allowed) each time it starts.")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+            if !declined.isEmpty {
+                Text("Charms does not ask about \(declined) and can only copy there.")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private static func names(_ identifiers: Set<String>) -> String {
+        identifiers
+            .map { SettingsModel.displayName(forBundleIdentifier: $0) ?? $0 }
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            .formatted(.list(type: .and))
     }
 
     private static func label(for tone: SkinTone) -> String {

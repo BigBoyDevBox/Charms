@@ -18,7 +18,7 @@ One system so far, on 10 November 2026:
 
 ### How
 
-- **Automated:** `swift test` (331 tests) and `swift run CharmsCatalogTool check`.
+- **Automated:** `swift test` (339 tests) and `swift run CharmsCatalogTool check`.
 - **End to end:** `scripts/e2e.sh` drives the built app with real key and
   mouse events against the `CharmsHarness` window (an `NSTextView`, an
   `NSTextField` and an `NSSecureTextField`) and compares the text that
@@ -63,9 +63,26 @@ One system so far, on 10 November 2026:
 | Safari 27.0.1 | `<input type="password">` | Under the field | Copy only, as intended |
 | Safari 27.0.1 | `<textarea>`, typed `::` | Below the caret | `::`, Tab and Return replace the colons |
 | Electron 45.2.3 with its accessibility tree on | `<textarea>`, `<input type="text">`, `contenteditable` element | Beside the caret | Typed `::` with a name: the colons and the name are replaced in all three. Shortcut in the `<textarea>`: Unicode events. |
-| Electron 45.2.3 with its accessibility tree off | `<textarea>` | Over its window | Copy only: the application reports no focused field. Typed `::` does nothing. |
+| Electron 45.2.3 with its accessibility tree off | `<textarea>` | Over its window, after the question | Charms asks whether to turn field reporting on (see below). After Turn On: Unicode events. Otherwise Copy only. |
 | Terminal 2.15 | zsh prompt | Beside the cursor, estimated from the previous character | Unicode events |
 | An application without a text field in front | | Over its window | Copy only |
+
+### Applications that hide their text fields
+
+With a bare Electron 45.2.3 window, started with its accessibility tree off:
+
+- Control-P shows the question "Let Charms insert into Electron?". Turn On:
+  the picker opened by itself about two seconds later, in insertion mode
+  beside the caret, and the chosen character arrived.
+- After quitting and restarting Electron, with Charms still running: no
+  question, and insertion worked on the first Control-P, four seconds after
+  the window came to the front.
+- Typing `::arrow` and Return showed the question; the typed name and the
+  Return did not answer it. Not Now gave the keyboard back to Electron, and a
+  second `::` in the same run asked nothing.
+- "Do not ask again" with Not Now: stored, the picker opened for copying, and
+  after restarting Charms there was no question. Settings showed the answer,
+  and Ask Again forgot it.
 
 ### Displays
 
@@ -119,9 +136,10 @@ Release build, Apple M4 Max, macOS 27.0.1.
 - **Chrome and real Electron applications** (VS Code, Slack and the like),
   **Firefox**, **Microsoft Office**, **JetBrains** IDEs. None was installed.
   Electron was tried only as a bare Electron 45 window showing a test page.
-  An Electron application keeps its accessibility tree off until an
-  assistive tool asks for it; while it is off Charms sees no field there
-  and offers Copy only. Charms does not switch it on.
+  The question about hidden text fields relies on the `AXManualAccessibility`
+  attribute, which Electron documents. Whether Chrome and other Chromium
+  browsers answer it the same way is not known; if they do not, Charms
+  offers Copy there and asks nothing.
 - **Notes, Mail, Messages, Pages.** Left alone on the test machine so as not
   to write into real data.
 - **The typed `::`** outside TextEdit, the harness, a Safari `<textarea>`
