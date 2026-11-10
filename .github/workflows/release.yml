@@ -108,10 +108,13 @@ jobs:
             ### Unsigned build
 
             This app is **not** code-signed with a Developer ID or notarized, so macOS
-            Gatekeeper will warn on first launch. To open it:
+            Gatekeeper refuses the first launch. To open it:
 
-            - **Right-click** (or Control-click) the app → **Open** → **Open**, or
-            - run `xattr -dr com.apple.quarantine /Applications/${{ env.APP_NAME }}.app`
+            - **macOS 15 or later:** try to open the app once and dismiss the
+              warning, then click **Open Anyway** under **System Settings →
+              Privacy & Security**;
+            - **macOS 14:** Control-click the app → **Open** → **Open**;
+            - or run `xattr -dr com.apple.quarantine /Applications/${{ env.APP_NAME }}.app`
 
       # Never trust an upload: download what GitHub actually serves for the tag and
       # byte-compare it against what was just built. A truncated or corrupt upload
