@@ -33,7 +33,7 @@ you are writing, wherever the mouse happens to be.
 | `⌃P` (configurable) | Open the picker; press again to close it. |
 | Typing | Search by name, keyword or alias: `arrow`, `check`, `infinity`, `cmd`, `->`, `nbsp`. A pasted character or `U+2192` finds it exactly. |
 | `→` at the end of the search, `↓`, `Tab` | Move into the results. Arrow keys then move between cells; `↑` from the first row returns to the search. |
-| `↵` | Insert the selected character where you were typing. |
+| `↵` | Insert the selected character where you were typing. The first one is selected as soon as the picker opens: your first favourite, or the best match once you search. |
 | `⌘↵` | Copy it instead. |
 | `⌘D` | Add the selected character to your favourites, or remove it. |
 | `⌃↵` | Open the selected character's menu: skin tones, moving a favourite, Copy. |

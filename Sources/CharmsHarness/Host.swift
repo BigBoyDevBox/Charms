@@ -14,7 +14,7 @@ final class Host: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private let arguments: Arguments
     private var window: NSWindow!
-    private let editor = NSTextView()
+    private let editor = HostTextView()
     private let field = NSTextField()
     private let secret = NSSecureTextField()
 
@@ -152,6 +152,13 @@ final class Host: NSObject, NSApplicationDelegate, NSWindowDelegate {
             window.makeFirstResponder(view)
         case "undo":
             editor.undoManager?.undo()
+        case "selectionDelay":
+            guard let milliseconds = request["ms"] as? Double else { return "selectionDelay needs ms" }
+            editor.accessibilitySelectionDelay = milliseconds < 0 ? nil : milliseconds / 1000
+            // With `--target field`, the text field takes the keyboard the
+            // moment the selection is asked for: focus moves inside the
+            // application while the selection is still on its way.
+            editor.focusThiefOnSelection = (request["target"] as? String) == "field" ? field : nil
         case "activate":
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
@@ -213,5 +220,33 @@ final class Host: NSObject, NSApplicationDelegate, NSWindowDelegate {
             usleep(10_000)
         }
         Output.fail("the host did not answer; is `CharmsHarness host` running?")
+    }
+}
+
+/// The editor. It can imitate applications that do not apply a selection
+/// made through Accessibility at once.
+final class HostTextView: NSTextView {
+    /// How long a selection set through Accessibility takes to arrive. Zero
+    /// is what AppKit does. Chromium answers the call at once and applies the
+    /// selection from its renderer afterwards: measured with Electron 45,
+    /// about 3 ms later. Nil drops the request, for a field that accepts the
+    /// call and never honours it.
+    var accessibilitySelectionDelay: TimeInterval? = 0
+    /// A view that takes the keyboard when a selection is asked for.
+    weak var focusThiefOnSelection: NSView?
+
+    override func setAccessibilitySelectedTextRange(_ range: NSRange) {
+        if let thief = focusThiefOnSelection {
+            window?.makeFirstResponder(thief)
+        }
+        guard let delay = accessibilitySelectionDelay else { return }
+        guard delay > 0 else {
+            super.setAccessibilitySelectedTextRange(range)
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self, NSMaxRange(range) <= (self.string as NSString).length else { return }
+            self.setSelectedRange(range)
+        }
     }
 }

@@ -451,12 +451,17 @@ final class PickerController: PickerSearchDelegate {
                 self.perform(self.machine.handle(.validated(id, .copyOnly)))
                 return
             }
-            self.capture.select(in: target, location: location, length: length) { [weak self] selected in
+            self.capture.select(in: target, location: location, length: length) { [weak self] result in
                 guard let self, self.session?.id == id, self.machine.state == .validating else { return }
-                if !selected {
+                switch result {
+                case .selected:
+                    break
+                case .refused:
                     self.services.diagnostics.record(.insertion, "blocked-selection-refused", application: target.bundleIdentifier)
+                case .focusMoved:
+                    self.services.diagnostics.record(.insertion, "blocked-focus-moved", application: target.bundleIdentifier)
                 }
-                self.perform(self.machine.handle(.validated(id, selected ? .valid : .copyOnly)))
+                self.perform(self.machine.handle(.validated(id, result == .selected ? .valid : .copyOnly)))
             }
         }
     }
@@ -512,11 +517,11 @@ final class PickerController: PickerSearchDelegate {
         if keepSelection, let previousItem {
             model.selection = model.position(of: previousItem.string, preferringSection: previous?.section)
                 ?? previous.flatMap { model.navigator.contains($0) ? $0 : nil }
-        } else if model.isQueryEmpty {
-            // Before a query nothing is selected; Return does nothing until
-            // the user moves into the grid.
-            model.selection = nil
+                ?? model.navigator.first
         } else {
+            // The first item is selected from the start, with or without a
+            // query: the first favourite when the picker opens, the best
+            // match while searching. Return always acts on a visible choice.
             model.selection = model.navigator.first
         }
         if model.selection == nil {

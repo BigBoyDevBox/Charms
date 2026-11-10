@@ -195,6 +195,17 @@ scenario_navigate() {
     expect "text" "$(editor)" "←"
 }
 
+scenario_first_selected() {
+    # Nothing typed, nothing moved: Return takes the first favourite.
+    reset "A "
+    open_picker || return 1
+    local from; from="$(mark)"
+    press return
+    await "outcome-" "$from" || { FAILURE="the session did not end"; return 1; }
+    sleep 0.15
+    expect "text" "$(editor)" "A →"
+}
+
 scenario_copy() {
     reset "A "
     open_picker && choose "infinity" --command || return 1
@@ -339,6 +350,75 @@ scenario_typed_trigger() {
     expect "text" "$(editor)" "x →"
 }
 
+scenario_typed_trigger_first_selected() {
+    # The colons alone, then Tab into the results and Return.
+    reset "x "
+    local from; from="$(mark)"
+    typing "::"
+    await "presented-" "$from" || { FAILURE="typing :: did not open the picker"; return 1; }
+    press tab
+    press return
+    await "outcome-" "$from" || { FAILURE="the session did not end"; return 1; }
+    sleep 0.15
+    expect "text" "$(editor)" "x →"
+}
+
+scenario_typed_trigger_late_selection() {
+    # Chromium applies a selection made through Accessibility a moment
+    # after the call returns. The colons must still be replaced.
+    reset "x "
+    send --op selectionDelay --ms 30 >/dev/null
+    local from; from="$(mark)" ended=0
+    typing "::arrow"
+    await "presented-" "$from" || { send --op selectionDelay --ms 0 >/dev/null; FAILURE="typing :: did not open the picker"; return 1; }
+    press return
+    await "outcome-" "$from" || ended=1
+    sleep 0.15
+    send --op selectionDelay --ms 0 >/dev/null
+    (( ended == 0 )) || { FAILURE="the session did not end"; return 1; }
+    expect "text" "$(editor)" "x →"
+}
+
+scenario_typed_trigger_focus_moves_during_selection() {
+    # While the selection is on its way, another field of the same
+    # application takes the keyboard. The first field still ends up with the
+    # colons selected, but nothing may be sent: it would land in the other.
+    reset "x "
+    send --op selectionDelay --ms 60 --target field >/dev/null
+    local from; from="$(mark)" blocked=0
+    typing "::arrow"
+    await "presented-" "$from" || { send --op selectionDelay --ms 0 >/dev/null; FAILURE="typing :: did not open the picker"; return 1; }
+    press return
+    await "blocked-" "$from" || blocked=1
+    sleep 0.3
+    press escape
+    await "outcome-" "$from"
+    send --op selectionDelay --ms 0 >/dev/null
+    local other; other="$(send --op state | field field)"
+    expect "the other field" "$other" "" || return 1
+    (( blocked == 0 )) || { FAILURE="the insertion was not blocked"; return 1; }
+    expect "text" "$(editor)" "x ::"
+}
+
+scenario_typed_trigger_selection_refused() {
+    # A field that accepts the selection call and never honours it: nothing
+    # is sent, the picker offers Copy, and Escape leaves the text as typed.
+    reset "x "
+    send --op selectionDelay --ms -1 >/dev/null
+    local from; from="$(mark)" refused=0
+    typing "::arrow"
+    await "presented-" "$from" || { send --op selectionDelay --ms 0 >/dev/null; FAILURE="typing :: did not open the picker"; return 1; }
+    press return
+    await "blocked-selection-refused" "$from" || refused=1
+    sleep 0.2
+    press escape
+    await "outcome-cancelled" "$from"
+    send --op selectionDelay --ms 0 >/dev/null
+    (( refused == 0 )) || { FAILURE="the refusal was not recorded"; return 1; }
+    # The name was typed into the picker; the field holds the colons only.
+    expect "text" "$(editor)" "x ::"
+}
+
 scenario_typed_trigger_fast() {
     reset "x "
     local from; from="$(mark)"
@@ -385,8 +465,10 @@ scenario_password_field() {
     expect "clipboard" "$(clipboard)" "→"
 }
 
-ALL=(insert escape replace_selection sequence navigate copy placement click_cell click_outside cancel_while_held
-     typed_trigger typed_trigger_fast typed_trigger_escape colons_inside_a_word password_field
+ALL=(insert escape replace_selection sequence navigate first_selected copy placement click_cell click_outside
+     cancel_while_held typed_trigger typed_trigger_first_selected typed_trigger_late_selection
+     typed_trigger_focus_moves_during_selection typed_trigger_selection_refused typed_trigger_fast
+     typed_trigger_escape colons_inside_a_word password_field
      paste_backend pass_through)
 
 # The preferences a scenario runs with. Charms is restarted when they change.
