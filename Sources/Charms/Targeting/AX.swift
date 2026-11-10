@@ -1,4 +1,5 @@
 import ApplicationServices
+import CharmsCore
 import Foundation
 
 /// Thin typed wrappers around the Accessibility calls Charms makes into
@@ -9,6 +10,16 @@ enum AX {
     /// Upper bound for one call. A hung application then costs a bounded
     /// delay, not a frozen picker.
     static let messagingTimeout: Float = 0.1
+
+    /// Applies the timeout to every Accessibility call this process makes.
+    ///
+    /// A timeout set on one element holds for that object only, not for
+    /// the elements read from it (`AXUIElement.h`), and those would wait
+    /// the system's default of several seconds for a hung application.
+    /// Setting it on the system-wide element makes it the process default.
+    static func applyMessagingTimeout() {
+        AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), messagingTimeout)
+    }
 
     static func application(_ processID: pid_t) -> AXUIElement {
         let element = AXUIElementCreateApplication(processID)
@@ -36,6 +47,9 @@ enum AX {
         guard let result = value(element, attribute), CFGetTypeID(result) == AXValueGetTypeID() else { return nil }
         var range = CFRange()
         guard AXValueGetValue(result as! AXValue, .cfRange, &range) else { return nil }
+        // The numbers come from another application. One that reports a
+        // negative value, or a range whose end overflows, has no range.
+        guard SourceTextRange(location: range.location, length: range.length) != nil else { return nil }
         return range
     }
 

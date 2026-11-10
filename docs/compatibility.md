@@ -18,7 +18,7 @@ One system so far, on 10 November 2026:
 
 ### How
 
-- **Automated:** `swift test` (322 tests) and `swift run CharmsCatalogTool check`.
+- **Automated:** `swift test` (326 tests) and `swift run CharmsCatalogTool check`.
 - **End to end:** `scripts/e2e.sh` drives the built app with real key and
   mouse events against the `CharmsHarness` window (an `NSTextView`, an
   `NSTextField` and an `NSSecureTextField`) and compares the text that

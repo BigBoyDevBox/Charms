@@ -42,6 +42,10 @@ struct MarkerReading: Sendable {
 final class TargetCaptureService: @unchecked Sendable {
     private let queue = DispatchQueue(label: "ch.lkmc.Charms.accessibility", qos: .userInteractive)
 
+    init() {
+        AX.applyMessagingTimeout()
+    }
+
     /// Captures the frontmost application's focused field.
     func capture(application: NSRunningApplication, primaryFrame: CGRect, completion: @escaping @MainActor (CapturedTarget) -> Void) {
         let processID = application.processIdentifier
