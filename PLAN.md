@@ -1,8 +1,8 @@
 # Charms implementation plan
 
-Status: final plan, under implementation
+Status: implemented through M4; first release (M5) not yet cut. What was verified, and what was not, is in `docs/compatibility.md`.
 
-Updated: 10 November 2026 (final review: project setup aligned with the owner's other Mac apps, native spike results recorded, data releases pinned; see `docs/reviews/2026-11-10-final-plan-review.md`)
+Updated: 10 November 2026 (implementation results recorded in §11, §15 and §16; final review: project setup aligned with the owner's other Mac apps, native spike results recorded, data releases pinned; see `docs/reviews/2026-11-10-final-plan-review.md`)
 
 ## 1. Product direction
 
@@ -516,71 +516,75 @@ Retain required Unicode/CLDR and any package notices in `THIRD_PARTY_NOTICES.md`
 
 ## 11. Delivery milestones
 
-Implement in small reviewable commits. The native risk spike was the gate for the broader implementation; it ran on 10 November 2026, and its conclusions are recorded in §15 and in the sections they settle. The milestones below keep their order; the M1 and M1b items describe what the spike established and what the implementation must then show in the real app.
+A ticked box means the item is implemented and covered by the automated tests, by `scripts/e2e.sh`, or by a hand check recorded in `docs/compatibility.md`; that document also lists what was not exercised. Implement in small reviewable commits. The native risk spike was the gate for the broader implementation; it ran on 10 November 2026, and its conclusions are recorded in §15 and in the sections they settle. The milestones below keep their order; the M1 and M1b items describe what the spike established and what the implementation must then show in the real app.
 
 ### M0 — Bootstrap the project
 
-- [ ] Create the Swift package with the `CharmsCore` library, the `Charms` executable, unit tests, and a tiny native text-input harness.
-- [ ] Set `Info.plist` `LSUIElement` and verify the accessory activation policy, including how Settings/About are presented and how the app returns to accessory state.
-- [ ] Document the deployment target (macOS 14), toolchain, bundle identifier (`ch.lkmc.Charms`), and development signing approach (§14).
-- [ ] Add the shared scripts and workflows: `scripts/build.sh`, `scripts/build-app.sh`, `scripts/release.sh`, CI, release, automated review, and the `AGENTS.md`/`CLAUDE.md`/`CICD.md`/`CHANGELOG.md` set.
-- [ ] Add README build/run instructions and a focused `.gitignore`; do not commit local IDE state or signing secrets.
-- [ ] Create a menu-bar accessory app with Settings and Quit, with single-instance enforcement.
+- [x] Create the Swift package with the `CharmsCore` library, the `Charms` executable, unit tests, and a tiny native text-input harness.
+- [x] Set `Info.plist` `LSUIElement` and verify the accessory activation policy, including how Settings/About are presented and how the app returns to accessory state.
+- [x] Document the deployment target (macOS 14), toolchain, bundle identifier (`ch.lkmc.Charms`), and development signing approach (§14).
+- [x] Add the shared scripts and workflows: `scripts/build.sh`, `scripts/build-app.sh`, `scripts/release.sh`, CI, release, automated review, and the `AGENTS.md`/`CLAUDE.md`/`CICD.md`/`CHANGELOG.md` set.
+- [x] Add README build/run instructions and a focused `.gitignore`; do not commit local IDE state or signing secrets.
+- [x] Create a menu-bar accessory app with Settings and Quit, with single-instance enforcement.
 
 **Exit:** a fresh checkout builds and launches; the app can be quit cleanly, and pure tests run without Accessibility permission.
 
 ### M1 — Prove focus, placement, and insertion
 
-- [ ] Register the default `⌃P` shortcut with a working recorder in Settings, and capture the original target before presentation.
-- [ ] Show a minimal nonactivating panel with a handful of fixed fixtures: `→`, `—`, `∞`, `😀`, `👍🏽`, `👩‍💻`, and `🇨🇭`.
-- [ ] Add the sequence types the P0 matrix requires to those fixtures: a keycap (`#️⃣`), a variation-selector emoji (`❤️`), and a tag-sequence flag (`🏴󠁧󠁢󠁳󠁣󠁴󠁿`).
-- [ ] Implement geometry conversion and the complete display fallback chain.
-- [ ] Implement cancellation, target validation, and one-dispatch session control.
-- [ ] Compare Unicode events and explicit plain-text paste with selection replacement and Undo.
-- [ ] Test two displays, the mouse on the other screen, negative/vertical display layouts, mixed scale factors, and full-screen/Spaces behaviour.
-- [ ] Record actual app/OS/version/backend results in `docs/compatibility.md` and capture decisions in a short technical note.
-- [ ] Provide the minimal Copy fallback that these exit criteria depend on, before they are judged; the full Copy action and its settings arrive in M3.
+- [x] Register the default `⌃P` shortcut with a working recorder in Settings, and capture the original target before presentation.
+- [x] Show a minimal nonactivating panel with a handful of fixed fixtures: `→`, `—`, `∞`, `😀`, `👍🏽`, `👩‍💻`, and `🇨🇭`.
+- [x] Add the sequence types the P0 matrix requires to those fixtures: a keycap (`#️⃣`), a variation-selector emoji (`❤️`), and a tag-sequence flag (`🏴󠁧󠁢󠁳󠁣󠁴󠁿`).
+- [x] Implement geometry conversion and the complete display fallback chain.
+- [x] Implement cancellation, target validation, and one-dispatch session control.
+- [x] Compare Unicode events and explicit plain-text paste with selection replacement and Undo.
+- [x] Test two displays with the mouse on the other screen, a display at negative coordinates, and a full-screen Space (the second display was a virtual one).
+- [ ] Test vertical display layouts, mixed scale factors, and "Displays have separate Spaces" switched on; none was available on the development machine.
+- [x] Record actual app/OS/version/backend results in `docs/compatibility.md` and capture decisions in a short technical note.
+- [x] Provide the minimal Copy fallback that these exit criteria depend on, before they are judged; the full Copy action and its settings arrive in M3.
 
 **Exit:** the core flow works in a native text view and ordinary browser field on both displays. Known incompatible contexts have a predictable Copy path. No unexplained wrong-target insertion or duplicate dispatch remains. If these behaviours cannot be achieved, narrow the supported matrix explicitly before proceeding.
 
 ### M1b — Prove the typed `::` trigger (separate gate)
 
-- [ ] Spike committed `::` detection, uninterrupted fast `::arrow` handoff, exact activation-range selection/replacement, Escape preservation, layout/IME limits, and the additional permission path before promising universal typed-trigger support.
+- [x] Spike committed `::` detection, uninterrupted fast `::arrow` handoff, exact activation-range selection/replacement, Escape preservation, layout/IME limits, and the additional permission path before promising universal typed-trigger support.
+
+Verdict: implemented as §7.5 and §7.6 describe and checked in the built app at 6 ms key gaps, with the Accessibility permission alone. Not checked with a real input method: the observer is suspended while one is active, and that rule has unit tests only.
 
 **Exit:** a recorded M1b verdict with an implemented attribution/reconciliation method, permissions, IME/layout limits, and fast-typing evidence. M1 can close independently. Both requested invocation methods remain v1 scope; failure requires an explicit revised design and new evidence before M4, not silent deferral of `::`. Do not claim an unsupported trigger or make the core scaffold wait for that experiment.
 
 ### M2 — Build the offline catalogue and search
 
-- [ ] Pin official datasets and retain notices.
-- [ ] Implement deterministic generation, validation, curated aliases, and seed favourites.
-- [ ] Add an immutable catalogue loader, exact-sequence IDs, and a local search index.
-- [ ] Add independently specified search/Unicode fixtures and measure full-catalogue performance.
+- [x] Pin official datasets and retain notices.
+- [x] Implement deterministic generation, validation, curated aliases, and seed favourites.
+- [x] Add an immutable catalogue loader, exact-sequence IDs, and a local search index.
+- [x] Add independently specified search/Unicode fixtures and measure full-catalogue performance.
 
 **Exit:** catalogue generation is reproducible; representative symbols and composite emoji round-trip exactly; relevance fixtures pass offline.
 
 ### M3 — Implement the selected compact grid
 
-- [ ] Build search, favourites, recents, the result grid, footer, and empty states around the M1 panel controller.
-- [ ] Add keyboard navigation, click selection, Copy, favourites actions, and validated emoji variants.
-- [ ] Match the first design's spacing and simplicity in light/dark appearance and at increased text size.
-- [ ] Validate search-field editing, input-method composition, VoiceOver, and dismissal/focus behaviour.
+- [x] Build search, favourites, recents, the result grid, footer, and empty states around the M1 panel controller.
+- [x] Add keyboard navigation, click selection, Copy, favourites actions, and validated emoji variants.
+- [ ] Match the first design's spacing and simplicity in light/dark appearance and at increased text size. (Built and reviewed in the dark appearance only.)
+- [x] Validate search-field editing and dismissal/focus behaviour.
+- [ ] Validate input-method composition in the search field and VoiceOver; both are implemented (marked-text guard, labels and traits) and neither was exercised.
 
 **Exit:** everyday use is possible without the mouse; opening and dismissing the panel remains correct after repeated searches and selections.
 
 ### M4 — Make it a dependable daily utility
 
-- [ ] Add versioned persistence, recovery/migration, and optional launch at login.
-- [ ] Add Accessibility onboarding and browse/copy mode.
-- [ ] Implement opt-in `::` observation, permission flow, the off switch and exclusions, boundary checks, bounded fast-typing handoff, and activation replacement proven in M1b.
-- [ ] Add only the compatibility overrides demonstrated necessary by M1; document the clipboard policy in user-facing terms.
-- [ ] Handle permission revocation, app termination, display changes, sleep/wake, and stale AX elements.
+- [x] Add versioned persistence, recovery/migration, and optional launch at login.
+- [x] Add Accessibility onboarding and browse/copy mode.
+- [x] Implement opt-in `::` observation, permission flow, the off switch and exclusions, boundary checks, bounded fast-typing handoff, and activation replacement proven in M1b.
+- [x] Add only the compatibility overrides demonstrated necessary by M1; document the clipboard policy in user-facing terms.
+- [x] Handle permission revocation, app termination, display changes, sleep/wake, and stale AX elements.
 
 **Exit:** favourites/settings survive relaunch; permission and compatibility failures are recoverable; every priority-zero scenario in §12.2 that does not depend on the M5 compatibility matrix passes, and each remaining P0 row carries a recorded, dated status in `docs/compatibility.md` rather than an assumption.
 
 ### M5 — Verify and package the first release
 
 - [ ] Complete the real-app/display compatibility matrix and review unresolved limitations.
-- [ ] Measure performance using release builds and record the hardware/OS used.
+- [x] Measure performance using release builds and record the hardware/OS used.
 - [ ] Produce the universal app and its zip and dmg through the tag-triggered release workflow, ad-hoc signed. Add Developer ID signing and notarization only once an account is supplied.
 - [ ] Verify a downloaded build from a stable, non-translocated installation, normally `/Applications`, including the Gatekeeper step an un-notarized download needs, launch, permission onboarding, login-item registration/approval, duplicate open, and quitting.
 - [ ] Publish build instructions, compatibility notes, release notes, and checksums with the release, together with the documentation §14 already requires: uninstalling and disabling launch at login, privacy behaviour, current compatibility, and how to recover insertion permission.
@@ -703,25 +707,30 @@ Decisions settled by the spike of 10 November 2026 (macOS 27.0.1, Apple Silicon,
 | Caret geometry | Confirm the line from an adjacent character, else guard one extra line (§6.1). | TextKit's zero-length rectangle is one line high; character rectangles are right. |
 | Default insertion transport and per-app exceptions | One Unicode key event pair through `postToPid`; paste only for listed apps (§7.3). | All fixtures exact up to 64 UTF-16 units, selection replaced, one Undo, no delay needed. |
 | Typed-marker observer and attribution | `NSEvent` global key-down monitor; attribution by delivery channel; position by read-back (§7.5, §7.6). | Clean split at 2 ms key gaps; caret arithmetic at event time was off by one at 15 ms gaps. |
-| Insertion-backend permission model | Accessibility covers reading focus, posting to a process, and the key monitor. | Apple's documentation for the monitor; to be confirmed with the installed app, since the spike ran from an already trusted shell. |
+| Insertion-backend permission model | Accessibility covers reading focus, posting to a process, and the key monitor. | The built app, started through Launch Services with only its own Accessibility grant, inserted by shortcut and by `::`; the grant was noticed without a relaunch. macOS 27 names the list Device Control and Data Access, so the interface describes it rather than naming it. |
 | Unicode/CLDR baseline and missing-glyph policy | Unicode 18.0.0, Emoji 18.0, CLDR 49; support decided at run time by a CoreText layout check (§8.1). | macOS 27.0.1 renders Emoji 17: newer entries must be hidden there, older systems hide more. |
+| Behaviour beyond TextEdit | Unicode events with no per-app exception needed so far. | Safari 27 (textarea, text input, editable element, password field) and Terminal 2.15 at a zsh prompt behaved like TextEdit; a password field gets Copy only. |
+| Full screen | No special case. | Over full-screen TextEdit the picker appeared in that Space, took keys and inserted. The stranding other apps of the owner worked around did not occur with this panel configuration. |
+| Pasteboard restoration for listed apps | Snapshot and restore only when the system allows reading without asking; never over a newer copy (§7.4). | In TextEdit and the harness the paste arrived and the previous clipboard was back afterwards; `accessBehavior` was `alwaysAllow` for the app started from a terminal. |
+| Cell size, navigation, mouse activation | 44 point cells, eight columns; arrows act on the results from the first press; a click activates on release like Return. | `scripts/e2e.sh` scenarios `navigate`, `click_cell`, `click_outside`. |
+| Permission request | One system prompt on the first press of Enable Insertion; later presses open the list directly. | Showing the prompt and opening System Settings together left the prompt open behind it after the switch was turned on. |
 | Signing and release configuration | Shared pipeline: ad-hoc signed universal zip and dmg; Apple Development identity locally (§14). | The owner's other apps; a development identity is present on the machine and none for Developer ID. |
 
-Still to be recorded from the finished app, each in `docs/compatibility.md`:
+Still open, each to be recorded in `docs/compatibility.md` when a machine or occasion allows:
 
 | Decision | Evidence needed | When |
 | --- | --- | --- |
-| Behaviour beyond TextEdit | The same checks in Safari, Notes, Mail, and Terminal; Chromium and Electron when a machine has them. | M4/M5 |
-| Full screen, Stage Manager, separate Spaces | The picker appears in the current context without a Space switch. "Displays have separate Spaces" is off on the development machine, and changing it needs a logout. | M5 |
-| Pasteboard restoration for listed apps | Demonstrated consumption behaviour and race tests, and what `accessBehavior` reports on each system. | M4 |
-| Final cell size, keyboard navigation, and mouse activation details | First-design review, increased text size, VoiceOver, IME tests, and an accidental-activation check for click-to-insert. | M3 |
-| Key observation under Accessibility alone | An app launched through Launch Services with only the Accessibility grant. | M4 |
+| Behaviour in Notes, Mail, Chromium and Electron applications | The checks already made in TextEdit, Safari and Terminal. Notes and Mail were left alone on the development machine so as not to write into the owner's data; no Chromium or Electron application was installed. | M5 |
+| Stage Manager, separate Spaces | The picker appears in the current context without a Space switch. "Displays have separate Spaces" is off on the development machine, and changing it needs a logout. | M5 |
+| Pasteboard restoration under Launch Services | What `accessBehavior` reports for the installed app on macOS 15.4 and later, and whether the system asks. | M5 |
+| Light appearance, increased text size, VoiceOver, input methods | A pass through the picker and settings in each. | M5 |
+| Coexistence with PopChar on the same shortcut | Which of the two receives Control-P, and what Charms reports when it is the second to register. PopChar was not installed on the development machine. | M5 |
 
 Do not expand the main interface to solve rare compatibility problems. Keep special handling behind a clear fallback, an app-specific setting, or documented scope.
 
 ## 16. First implementation slice
 
-The first implementation PR contains the scaffold in the shared setup (package, scripts, workflows, documents) together with the pure `CharmsCore` library, its tests, and the catalogue generator with the pinned data, so that CI exists on the main branch and has something real to run. The app follows in independently reviewable PRs for shortcut/target capture and placement, the picker, insertion, and the typed trigger, each checked against the real app. Both invocation methods remain in the first usable release.
+As built: the implementation landed as one PR with a commit per slice (scaffold, catalogue generator and data, `CharmsCore` with its tests, the app, the harness with `scripts/e2e.sh`, and the documents), not as the separate PRs first planned. The shared CI assembles and inspects the app bundle, so a scaffold without the app target would have needed a second, untested variant of the package and the workflow. Both invocation methods are in.
 
 Catalogue generation and a refined grid can proceed independently once their interfaces are defined, but the focus/placement/insertion state machine remains the critical path. Delegate bounded data, fixture, documentation, and visual tasks only after their expected outputs can be checked independently.
 

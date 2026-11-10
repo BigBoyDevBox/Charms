@@ -1,0 +1,8 @@
+# Deliberate additions outside the normal coverage rules.
+#
+# Format: scalars (hex, space-separated)<TAB>kind letter<TAB>group<TAB>name<TAB>keywords (|-separated)
+#
+# U+F8FF is a private-use code point that every Apple system font draws as the
+# Apple logo. Mac users ask for it by name, so it is listed despite the rule
+# that private-use characters are excluded.
+F8FF	s	Private Use Area	apple logo	apple|mac
