@@ -46,8 +46,9 @@ used most recently.
 
 Switch this on in Settings or in the menu-bar menu. Then type two colons at
 the start of a field or after a space and keep going: `::arrow`, Return. The
-colons and the name are replaced by the character. Escape leaves what you
-typed as it is. It is off by default, and off in terminals, code editors,
+colons and the name are replaced by the character. Escape closes the picker
+and leaves the colons in your text; the name you typed into the picker is not
+put there. It is off by default, and off in terminals, code editors,
 password managers and applications that have their own `:shortcodes:`; the
 list is yours to edit.
 
