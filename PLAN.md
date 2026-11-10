@@ -137,8 +137,8 @@ The diagram is structural; native font metrics determine final spacing.
 | Configured global shortcut | Open the picker; if already open, cancel. Ignore key-repeat so holding the shortcut does not repeatedly toggle it. |
 | Typing | Update the search query while preserving ordinary text editing and input-method composition. |
 | Left / right | Edit the query normally while the search field is focused; move between cells while navigating the grid. |
-| Down from search | Enter result navigation using the selected result, or select the first available item if the empty-query view has no selection. |
-| Right with the caret at the end of the query | Enter result navigation and move to the next result. Right does nothing at the end of a text field, so no editing behaviour is lost, and the second result is one key away instead of two. |
+| Down from search | Enter result navigation. With a result selected, move down one row from it, staying put when there is only one row; with none, as in the empty-query view, select the first available item. |
+| Right with the caret at the end of the query | Enter result navigation and move to the next result. Right does nothing at the end of a text field, so no editing behaviour is lost. Together with Down this makes the arrow keys act on the results at once: the second result is one key away, not two. |
 | Up from search | Nothing; the search field is the top of the picker. |
 | Up / down in grid | Move by the visible column count; Up from the first row returns to search. Define and test partial final rows. |
 | Partial final rows | Treat the short trailing row as a real case, not an edge case: Right and Down clamp to the last cell instead of wrapping, Left from a row's first cell moves to the previous row's last cell, and a one-cell final row still answers Up and Down. Confirm the choice during the M3 interaction review (§15). |
@@ -165,7 +165,7 @@ Confirm these rules with a native interaction test. Enter can activate the selec
 
 ### 4.4 Menu bar, settings, and onboarding
 
-The menu-bar item must offer Open Charms, the `::` switch once that feature has been enabled, Settings, About, and Quit. Capture the external app/field at the status-item engagement boundary, before transient menu/key-focus changes, whether or not Charms becomes active. Revalidate that same target when Open Charms is chosen; never substitute an indefinitely cached last app. If no trustworthy external target exists, use browse/copy mode. The visible-picker toggle rule below takes precedence over starting another capture.
+The menu-bar item must offer Open Charms, the `::` switch, Settings, About, and Quit. The switch is always listed, so the menu never changes shape; while insertion is not enabled it is disabled and says so. Capture the external app/field at the status-item engagement boundary, before transient menu/key-focus changes, whether or not Charms becomes active. Revalidate that same target when Open Charms is chosen; never substitute an indefinitely cached last app. If no trustworthy external target exists, use browse/copy mode. The visible-picker toggle rule below takes precedence over starting another capture.
 
 Browse/copy mode is the same picker with no insertion-capable target: search, favourites, and recents remain available. The footer says Copy; Enter or primary-click copies the selected item, as do the explicit Copy shortcuts. No source focus is required to copy, and focus is restored only while its original context is still current. This is a supported mode, not an error state.
 
