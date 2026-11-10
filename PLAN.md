@@ -663,7 +663,7 @@ Preload or lazily prepare the immutable catalogue without delaying first keyboar
 - Define "reproducible" before relying on it: either a clean checkout at a pinned commit, rebuilt on the documented toolchain, produces byte-identical archives, or the release notes state plainly that the published checksums identify the artifact rather than prove a reproducible build. Verify whichever claim is made once per release instead of assuming it.
 - Add CI for a macOS build, meaningful unit tests, deterministic data validation, and release-artifact checks. Use currently available supported runner/toolchain versions when implementing it, rather than freezing guessed service versions in this plan.
 - A signing identity/Apple Developer account is a release prerequisite, not a reason to block unsigned local prototyping.
-- Document uninstalling/disabling launch at login, privacy behaviour, current compatibility, and how to recover insertion permission.
+- Document installing the app in /Applications before enabling launch at login — the system may otherwise run a newly downloaded app from a randomized, read-only path (app translocation) — and document uninstalling/disabling launch at login, privacy behaviour, current compatibility, and how to recover insertion permission.
 - Add automatic updates only after signing and release reproducibility work; assess a maintained updater separately if needed.
 
 ## 15. Decisions to record during implementation
