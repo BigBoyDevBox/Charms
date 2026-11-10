@@ -146,7 +146,7 @@ The diagram is structural; native font metrics determine final spacing.
 | Command-D | Toggle the selected item's favourite state. |
 | Tab / Shift-Tab | Follow a predictable native focus order; never trap the user in the grid. |
 
-Confirm these search-field/result navigation rules with a small native interaction test. Enter can insert the selected result directly from the search field, without an extra Down key. Do not intercept Return, arrows, or Escape while an input method is using them to commit marked text or choose candidates. Keep normal selection, paste, undo, and VoiceOver commands usable in the search field.
+Confirm these search-field/result navigation rules with a small native interaction test. Enter can insert the selected result directly from the search field, without an extra Down key. Do not intercept Return, arrows, or Escape while an input method is using them to commit marked text or choose candidates: verify that the search field's `NSTextInputClient` has `hasMarkedText() == false` before handling those keys as picker navigation, insertion, or cancellation. Keep normal selection, paste, undo, and VoiceOver commands usable in the search field.
 
 ### 4.3 Favourites, recents, and variants
 
@@ -387,7 +387,7 @@ Treat typed invocation as a separate input adapter, not a second picker or an un
 - Before a trigger candidate, keep only minimal recognition state, such as a first-colon candidate, boundary state, source identity, and timestamp. After `::`, a bounded transient query-prefix buffer is allowed only for the handoff below. Do not buffer unrelated typing or log either form of state.
 - Reset on focus/caret changes, app switch, mouse navigation (observe mouse-down events in the same listen-only observer, since a click that moves the caret within one field changes no focused element), nonmatching editing keys (after a first colon, any key other than a second colon, including shortcuts such as ⌘V), timeout (initially about one second between the colons), sleep/lock, secure input, permission loss, or event-tap interruption. Ignore auto-repeat and Charms-generated events.
 - Suspend new trigger recognition through the entire active invocation, including capture, transition, visible browsing, validation, and insertion handoff, so query text cannot trigger a second session.
-- Do not trigger from pasted text, dictation, or unproven synthetic input. Uncertain IME/marked-text composition disables automatic recognition in that context; the global shortcut still works.
+- Do not trigger from pasted text, dictation, or unproven synthetic input. Uncertain IME/marked-text composition disables automatic recognition in that context: check `kAXMarkedTextRangeAttribute` on the target element and suspend trigger recognition while an active marked-text range exists. The global shortcut still works.
 - Require an allowed boundary to avoid treating constructs such as `std::` as a command. Validate only the minimal source context needed for that decision.
 - Ship a conservative, editable application exclusion list for apps with their own shortcode UI, code editors/terminals, password managers, remote/virtualized input environments, and browser address/search fields. Record the initial bundle IDs in data, not scattered conditionals. Browser address bars are ordinary editable fields, so exclude them by accessibility role/subrole rather than by inspecting page content, and suppress the trigger for bracketed IPv6-like sequences such as `[::1]`.
 - Start with application-level exclusions. Per-website exclusions can follow later; do not inspect browsing URLs or page content merely to detect the marker.
@@ -696,6 +696,7 @@ The first useful milestone is: **with the mouse on one monitor and the caret on 
 These references establish available platform/data capabilities. The placement, lifecycle, compatibility, and UX policies in this plan are engineering decisions that still require the tests above.
 
 - [Apple: selected text range AX attribute](https://developer.apple.com/documentation/applicationservices/kaxselectedtextrangeattribute).
+- [Apple: marked text range AX attribute](https://developer.apple.com/documentation/applicationservices/kaxmarkedtextrangeattribute).
 - [Apple: bounds-for-range AX parameter](https://developer.apple.com/documentation/applicationservices/kaxboundsforrangeparameterizedattribute).
 - [Apple: AX attribute queries and failure modes](https://developer.apple.com/documentation/applicationservices/1462085-axuielementcopyattributevalue).
 - [Apple: focused UI element attribute](https://developer.apple.com/documentation/applicationservices/kaxfocuseduielementattribute).
