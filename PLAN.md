@@ -208,6 +208,8 @@ AppKit UI and lifecycle state belong on the main actor. Catalogue loading, index
 
 Use dependency injection at these boundaries to test geometry, search, session transitions, and insertion decisions without manipulating other apps.
 
+Name the platform mechanisms explicitly so the spike does not re-derive them: hot-key registration through the Carbon Hot Key API (`RegisterEventHotKey`) behind `HotKeyService`; listen-only event taps through `CGEventTapCreate` behind `TypedTriggerService`; focus/app-switch change detection through an accessibility observer (`AXObserver`, `kAXFocusedUIElementChangedNotification`) plus `NSWorkspace` frontmost-application notifications; and secure-input detection through `IsSecureEventInputEnabled()` before any source text is read or targeted. Confirm the current SDK signatures and availability during M0.
+
 Start with public system hot-key registration behind `HotKeyService` rather than a global keyboard hook for shortcut-only use. Prototype direct distribution without App Sandbox; keep any future sandbox/App Store feasibility assessment separate from the initial implementation.
 
 ## 6. Focus capture and display placement
@@ -619,7 +621,10 @@ These references establish available platform/data capabilities. The placement, 
 - [Apple: selected text range AX attribute](https://developer.apple.com/documentation/applicationservices/kaxselectedtextrangeattribute).
 - [Apple: bounds-for-range AX parameter](https://developer.apple.com/documentation/applicationservices/kaxboundsforrangeparameterizedattribute).
 - [Apple: AX attribute queries and failure modes](https://developer.apple.com/documentation/applicationservices/1462085-axuielementcopyattributevalue).
+- [Apple: focused UI element attribute](https://developer.apple.com/documentation/applicationservices/kaxfocuseduielementattribute).
+- [Apple: focused UI element changed notification](https://developer.apple.com/documentation/applicationservices/kaxfocuseduielementchangednotification).
 - [Apple: Accessibility trust](https://developer.apple.com/documentation/applicationservices/1459186-axisprocesstrustedwithoptions).
+- [Apple: workspace and frontmost application](https://developer.apple.com/documentation/appkit/nsworkspace).
 - [Apple: nonactivating panels](https://developer.apple.com/documentation/appkit/nswindow/stylemask-swift.struct/nonactivatingpanel).
 - [Apple: screen containing keyboard focus](https://developer.apple.com/documentation/appkit/nsscreen/main).
 - [Apple: window collection behaviour](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct).
