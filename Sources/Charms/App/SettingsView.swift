@@ -92,7 +92,7 @@ struct SettingsView: View {
                         Button("Open Login Items…") { LaunchAtLogin.openLoginItemsSettings() }
                     }
                 } else if model.launchState == .unavailable {
-                    Text("Move Charms to the Applications folder to use this.").font(.callout).foregroundStyle(.secondary)
+                    Text("Charms is running from a temporary copy. Move it to the Applications folder and open it from there to use this.").font(.callout).foregroundStyle(.secondary)
                 }
                 if let message = model.launchMessage {
                     Text(message).font(.callout).foregroundStyle(.orange)
