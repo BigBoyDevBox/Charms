@@ -22,6 +22,8 @@ The repository currently contains the project license and no application impleme
 - The default interface remains useful without choosing a font, Unicode block, output format, or category.
 - Searching, favourites, and recents work offline, without an account.
 - An optional typed `::` trigger opens the same picker, alongside the global shortcut, without leaving the trigger behind after insertion.
+- VoiceOver and keyboard-only users can search, select, favourite, insert, copy, and dismiss.
+- The app requests only the accessibility access it needs; browse/copy remains usable when that access is missing or revoked.
 
 ## 2. Scope and initial platform choices
 
