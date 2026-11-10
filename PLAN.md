@@ -110,13 +110,14 @@ Use the first design as the visual contract:
 │ Recent                                   │
 │  ←    °    ≠    •    ✨    😂    ⌘    ↗   │
 ├──────────────────────────────────────────┤
-│ Right arrow · U+2192             ↵ Insert │
+│ Right arrow · U+2192  ↵ Insert · ⌘↵ Copy │
 └──────────────────────────────────────────┘
 ```
 
 The diagram is structural; native font metrics determine final spacing.
 
 - Start near 400 points wide with approximately 40-44 point character cells and eight columns at the normal size.
+- Surface the Copy action in the footer (for example `⌘↵ Copy`) so the explicit copy path is discoverable without reading the keyboard table.
 - Let accessibility text sizing, available display area, and actual font metrics determine the final dimensions. Reflow rather than clipping.
 - Empty search shows a compact favourites section and up to two rows of recents. Seed a small useful favourites set only on first launch.
 - A non-empty query replaces those sections with a single result grid. Keep the selected name and full Unicode sequence in the footer.
@@ -356,7 +357,7 @@ Treat typed invocation as a separate input adapter, not a second picker or an un
 - Suspend new trigger recognition through the entire active invocation, including capture, transition, visible browsing, validation, and insertion handoff, so query text cannot trigger a second session.
 - Do not trigger from pasted text, dictation, or unproven synthetic input. Uncertain IME/marked-text composition disables automatic recognition in that context; the global shortcut still works.
 - Require an allowed boundary to avoid treating constructs such as `std::` as a command. Validate only the minimal source context needed for that decision.
-- Ship a conservative, editable application exclusion list for apps with their own shortcode UI, code editors/terminals, password managers, and remote/virtualized input environments. Record the initial bundle IDs in data, not scattered conditionals.
+- Ship a conservative, editable application exclusion list for apps with their own shortcode UI, code editors/terminals, password managers, remote/virtualized input environments, and browser address/search fields. Record the initial bundle IDs in data, not scattered conditionals. Browser address bars are ordinary editable fields, so exclude them by accessibility role/subrole rather than by inspecting page content, and suppress the trigger for bracketed IPv6-like sequences such as `[::1]`.
 - Start with application-level exclusions. Per-website exclusions can follow later; do not inspect browsing URLs or page content merely to detect the marker.
 - Pause/disable must stop observation promptly. Recover an interrupted tap only while the option is still enabled and permissions/eligibility remain valid.
 
@@ -410,7 +411,7 @@ Each entry needs:
 - Kind/presentation metadata, variant-family relationships, and any known rendering-support metadata.
 - Source-data version and provenance in the catalogue manifest.
 
-Preserve variation selectors, ZWJ joins, modifiers, keycap sequences, and regional-indicator flag sequences in stored and inserted values. Normalize **search keys**, not the output string. Deduplicate by exact output sequence without collapsing meaningful text/emoji presentations.
+Preserve variation selectors, ZWJ joins, modifiers, keycap sequences, and regional-indicator flag sequences in stored and inserted values. Record each emoji's intended text-vs-emoji presentation from its Unicode `Emoji_Presentation` property and include the required variation selector (VS15/VS16) in the stored output sequence, so text-default symbols such as `©`, `™`, and `▶` render consistently; never add variation selectors to search keys. Normalize **search keys**, not the output string. Deduplicate by exact output sequence without collapsing meaningful text/emoji presentations.
 
 ### 8.3 Matching and ranking
 
