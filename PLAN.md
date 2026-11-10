@@ -321,7 +321,7 @@ The diagram shows the shortcut path in brief. The table below is the complete li
 A paste-backend clipboard restoration (7.4) can outlive its session. A new session may start while one is pending, but must not start another clipboard transaction until it resolves, and a restoration never acts on behalf of a later session.
 
 - Only one session and one insertion dispatch can be active.
-- A shortcut invocation supersedes pending `::` recognition, clears its candidate state, and preserves text already typed in the source. It starts a fresh shortcut session rather than inheriting a marker-removal range. An already visible picker still follows the normal shortcut-to-cancel rule.
+- A shortcut invocation supersedes pending `::` recognition, clears its candidate state, and preserves text already typed in the source. It starts a fresh shortcut session rather than inheriting a marker-removal range. Pressing the shortcut while state is `capturing` immediately cancels in-flight capture and returns to `idle`. An already visible picker still follows the normal shortcut-to-cancel rule.
 - Repeated Enter/click events cannot dispatch twice.
 - The release wait before dispatch (7.3) also covers the key or mouse button that committed the choice. If focus returned while Return was still down, the source could receive its key-up or auto-repeated Return events and insert line breaks.
 - Cancelling invalidates pending AX requests, search results, scheduled paste actions, and focus restoration callbacks.
@@ -480,7 +480,7 @@ Retain required Unicode/CLDR and any package notices in `THIRD_PARTY_NOTICES.md`
 - Keep runtime diagnostics limited to timings, error categories, transport choice, and coarse placement/fallback reasons. Avoid typed text and raw user content.
 - No telemetry or network access is needed for ordinary operation.
 - With typed recognition disabled, no global keyboard observer is installed. With it enabled, observation is local and ephemeral, limited to marker recognition and the bounded explicit-query handoff; unrelated typing is never retained.
-- Use the system login-item API when the user opts in; reflect actual registration state, including a disabled or approval-required login item.
+- Use the system login-item API (`SMAppService.mainApp`) when the user opts in; reflect actual registration state, including a disabled or approval-required login item (`SMAppService.status == .requiresApproval`). In the approval-required state, provide a direct affordance to open System Settings (`SMAppService.openSystemSettingsLoginItems()`) with clear recovery instructions.
 
 ## 10. Accessibility and interaction quality
 
@@ -502,7 +502,7 @@ Implement in small reviewable commits. The native risk spike is a gate for the b
 - [ ] Set `Info.plist` `LSUIElement` and verify the accessory activation policy, including how Settings/About are presented and how the app returns to accessory state.
 - [ ] Select and document the deployment target, toolchain, stable bundle identifier, and development signing approach.
 - [ ] Add README build/run instructions and a focused `.gitignore`; do not commit local IDE state or signing secrets.
-- [ ] Create a menu-bar accessory app with Settings and Quit.
+- [ ] Create a menu-bar accessory app with Settings and Quit, with single-instance enforcement.
 
 **Exit:** a fresh checkout builds and launches; the app can be quit cleanly, and pure tests run without Accessibility permission.
 
@@ -718,6 +718,8 @@ These references establish available platform/data capabilities. The placement, 
 - [Apple: selected-text AX attribute](https://developer.apple.com/documentation/applicationservices/kaxselectedtextattribute).
 - [NSPasteboard.org: transient and auto-generated pasteboard markers](http://nspasteboard.org/).
 - [Apple: login item service](https://developer.apple.com/documentation/servicemanagement/smappservice/mainapp).
+- [Apple: SMAppService status](https://developer.apple.com/documentation/servicemanagement/smappservice/status).
+- [Apple: SMAppService openSystemSettingsLoginItems](https://developer.apple.com/documentation/servicemanagement/smappservice/opensystemsettingsloginitems%28%29).
 - [Electron: accessibility integration](https://www.electronjs.org/docs/latest/tutorial/accessibility).
 - [Apple: window list information](https://developer.apple.com/documentation/coregraphics/cgwindowlistcopywindowinfo(_:_:)).
 - [Unicode Character Database](https://www.unicode.org/ucd/).
