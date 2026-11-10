@@ -1,3 +1,4 @@
+import CharmsCore
 import Foundation
 import ServiceManagement
 
@@ -5,22 +6,19 @@ import ServiceManagement
 /// always read back from the system, never remembered separately, so the
 /// setting shows what is actually registered.
 enum LaunchAtLogin {
-    enum State: Equatable {
-        case off
-        case on
-        /// Registered, but the user has to allow it in System Settings.
-        case needsApproval
-        /// The app is not running from an installed bundle.
-        case unavailable
+    static var state: LoginItem.State {
+        LoginItem.state(for: systemStatus, bundlePath: Bundle.main.bundlePath)
     }
 
-    static var state: State {
+    private static var systemStatus: LoginItem.Status {
         switch SMAppService.mainApp.status {
-        case .enabled: return .on
-        case .requiresApproval: return .needsApproval
-        case .notRegistered: return .off
-        case .notFound: return .unavailable
-        @unknown default: return .unavailable
+        case .enabled: return .enabled
+        case .requiresApproval: return .requiresApproval
+        case .notRegistered: return .notRegistered
+        case .notFound: return .notFound
+        // An answer this build does not know: leave the switch usable and
+        // let registering report what is wrong.
+        @unknown default: return .notFound
         }
     }
 

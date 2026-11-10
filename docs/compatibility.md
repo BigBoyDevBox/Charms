@@ -18,7 +18,7 @@ One system so far, on 10 November 2026:
 
 ### How
 
-- **Automated:** `swift test` (326 tests) and `swift run CharmsCatalogTool check`.
+- **Automated:** `swift test` (331 tests) and `swift run CharmsCatalogTool check`.
 - **End to end:** `scripts/e2e.sh` drives the built app with real key and
   mouse events against the `CharmsHarness` window (an `NSTextView`, an
   `NSTextField` and an `NSSecureTextField`) and compares the text that
@@ -83,6 +83,11 @@ not needed.
   shortcut (Control-Option-P took effect at once, the old one was released)
   and resetting it.
 - Favourites (Command-D), recents, and their storage across relaunches.
+- "Open Charms at login", with an ad-hoc signed build in the Applications
+  folder. Before its first registration the system reports the login item
+  as "not found"; the switch is usable in that state. Switching it on
+  registered the item (shown as enabled by `sfltool dumpbtm`), switching it
+  off disabled it again.
 - Another application coming to the front while the picker is open cancels
   the session and nothing is inserted. (Seen repeatedly: other processes on
   the test machine kept activating themselves.)
@@ -121,7 +126,11 @@ Release build, Apple M4 Max, macOS 27.0.1.
 - **PopChar or another utility on the same shortcut.** The first to register
   wins; what Charms shows when it is second (a message in Settings) was not
   exercised.
-- **Open at login.** It needs the app in the Applications folder.
+- **Starting at login.** The login item registers and unregisters, but
+  nobody has logged out and in again to see Charms start. A login item that
+  waits for approval in System Settings, and a copy that macOS runs from a
+  temporary location (opened straight from Downloads or the disk image),
+  have code and unit tests only.
 - **A downloaded release**, its Gatekeeper prompt, and the pasteboard privacy
   behaviour of an app started that way.
 - **Secure input switched on by another application** (some password
