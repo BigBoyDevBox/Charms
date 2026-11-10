@@ -1,117 +1,81 @@
 // Generates assets/Charms-icon.png, the committed 1024x1024 master that
 // scripts/make-icon.swift turns into the .iconset at build time.
 //
-//   swift media-sources/icon.swift assets/Charms-icon.png
+//   swift media-sources/icon.swift media-sources/icon.png assets/Charms-icon.png
 //
-// The motif is the picker itself: a small grid of character cells on a dark
-// tile, with one cell selected. It is drawn with CoreGraphics and CoreText
-// from system fonts only, so the icon is reproducible from this file.
-import AppKit
+// The artwork in media-sources/icon.png is a square, opaque, edge-to-edge
+// image; it is kept as delivered and never edited. A macOS app icon is not
+// edge to edge: it is a rounded tile of 824 points on a 1024 point canvas,
+// with a soft shadow beneath it. This script places the artwork on that grid.
+// Rerun it after replacing the artwork, and commit the result.
 import CoreGraphics
-import CoreText
 import Foundation
 import ImageIO
+import SwiftUI
 import UniformTypeIdentifiers
 
-let arguments = CommandLine.arguments
-guard arguments.count == 2 else {
-    FileHandle.standardError.write(Data("Usage: icon.swift OUTPUT_PNG\n".utf8))
+func fail(_ message: String) -> Never {
+    FileHandle.standardError.write(Data("icon.swift: \(message)\n".utf8))
     exit(1)
 }
 
-let size = 1024
+let arguments = CommandLine.arguments
+guard arguments.count == 3 else { fail("usage: icon.swift ARTWORK_PNG OUTPUT_PNG") }
+
+let artworkURL = URL(fileURLWithPath: arguments[1])
+let outputURL = URL(fileURLWithPath: arguments[2])
+
+guard let source = CGImageSourceCreateWithURL(artworkURL as CFURL, nil),
+      let artwork = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+    fail("cannot read \(artworkURL.path)")
+}
+guard artwork.width == artwork.height else {
+    fail("the artwork must be square, got \(artwork.width) x \(artwork.height)")
+}
+
+/// The canvas every macOS icon size is resampled from.
+let canvasSide = 1024
+/// The tile on Apple's macOS icon grid: 824 of 1024 points, centred.
+let tile = CGRect(x: 100, y: 100, width: 824, height: 824)
+/// The grid's corner radius for that tile.
+let tileCornerRadius: CGFloat = 185.4
+
+guard artwork.width >= Int(tile.width) else {
+    fail("the artwork must be at least \(Int(tile.width)) pixels wide, got \(artwork.width)")
+}
+
 let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
 guard let context = CGContext(
-    data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
+    data: nil, width: canvasSide, height: canvasSide, bitsPerComponent: 8, bytesPerRow: 0,
     space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-) else {
-    FileHandle.standardError.write(Data("error: cannot create a bitmap context\n".utf8))
-    exit(1)
-}
+) else { fail("cannot create a bitmap context") }
 
-func color(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat, _ alpha: CGFloat = 1) -> CGColor {
-    CGColor(colorSpace: colorSpace, components: [red / 255, green / 255, blue / 255, alpha])!
-}
+// The system's icon shape has continuous corners, not circular arcs. SwiftUI
+// is the one public source of that curve.
+let tilePath = RoundedRectangle(cornerRadius: tileCornerRadius, style: .continuous).path(in: tile).cgPath
 
-// The tile: the standard macOS icon shape, inset from the canvas.
-let tile = CGRect(x: 100, y: 100, width: 824, height: 824)
-let tilePath = CGPath(roundedRect: tile, cornerWidth: 186, cornerHeight: 186, transform: nil)
-
+// The shadow is cast by an opaque tile, which the artwork then covers.
 context.saveGState()
-context.setShadow(offset: CGSize(width: 0, height: -14), blur: 36, color: color(0, 0, 0, 0.32))
+context.setShadow(
+    offset: CGSize(width: 0, height: -10), blur: 20,
+    color: CGColor(colorSpace: colorSpace, components: [0, 0, 0, 0.3])!
+)
 context.addPath(tilePath)
-context.setFillColor(color(34, 30, 64))
+context.setFillColor(CGColor(colorSpace: colorSpace, components: [0, 0, 0, 1])!)
 context.fillPath()
 context.restoreGState()
 
 context.saveGState()
 context.addPath(tilePath)
 context.clip()
-let gradient = CGGradient(
-    colorsSpace: colorSpace,
-    colors: [color(74, 58, 150), color(38, 30, 84), color(22, 18, 48)] as CFArray,
-    locations: [0, 0.55, 1]
-)!
-context.drawLinearGradient(gradient, start: CGPoint(x: tile.midX, y: tile.maxY), end: CGPoint(x: tile.midX, y: tile.minY), options: [])
+context.interpolationQuality = .high
+context.draw(artwork, in: tile)
 context.restoreGState()
 
-// A 2 x 2 grid of cells. The lower right one is the selection.
-let glyphs = ["→", "∞", "✓", "★"]
-let cellSize: CGFloat = 300
-let gap: CGFloat = 44
-let gridSide = cellSize * 2 + gap
-let gridOrigin = CGPoint(x: tile.midX - gridSide / 2, y: tile.midY - gridSide / 2)
-let selected = 3
-
-func drawGlyph(_ glyph: String, in rect: CGRect, fill: CGColor) {
-    let font = CTFontCreateUIFontForLanguage(.system, 190, nil) ?? CTFontCreateWithName("Helvetica" as CFString, 190, nil)
-    let bold = CTFontCreateCopyWithSymbolicTraits(font, 190, nil, .traitBold, .traitBold) ?? font
-    let attributes: [NSAttributedString.Key: Any] = [
-        NSAttributedString.Key(kCTFontAttributeName as String): bold,
-        NSAttributedString.Key(kCTForegroundColorAttributeName as String): fill
-    ]
-    let line = CTLineCreateWithAttributedString(NSAttributedString(string: glyph, attributes: attributes))
-    // Centre on the ink, not on the advance, so every symbol sits in the
-    // middle of its cell whatever its side bearings.
-    let ink = CTLineGetBoundsWithOptions(line, .useGlyphPathBounds)
-    context.textPosition = CGPoint(x: rect.midX - ink.midX, y: rect.midY - ink.midY)
-    CTLineDraw(line, context)
-}
-
-for (index, glyph) in glyphs.enumerated() {
-    let column = CGFloat(index % 2)
-    let row = CGFloat(index / 2)
-    // Row 0 is the top row; CoreGraphics counts upwards.
-    let rect = CGRect(
-        x: gridOrigin.x + column * (cellSize + gap),
-        y: gridOrigin.y + (1 - row) * (cellSize + gap),
-        width: cellSize, height: cellSize
-    )
-    let path = CGPath(roundedRect: rect, cornerWidth: 64, cornerHeight: 64, transform: nil)
-    context.addPath(path)
-    if index == selected {
-        context.setFillColor(color(255, 196, 61))
-        context.fillPath()
-        drawGlyph(glyph, in: rect, fill: color(40, 30, 80))
-    } else {
-        context.setFillColor(color(255, 255, 255, 0.11))
-        context.fillPath()
-        drawGlyph(glyph, in: rect, fill: color(244, 242, 255))
-    }
-}
-
-guard let image = context.makeImage() else {
-    FileHandle.standardError.write(Data("error: cannot render the image\n".utf8))
-    exit(1)
-}
-let url = URL(fileURLWithPath: arguments[1])
-guard let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else {
-    FileHandle.standardError.write(Data("error: cannot write \(url.path)\n".utf8))
-    exit(1)
-}
+guard let image = context.makeImage() else { fail("cannot render the image") }
+guard let destination = CGImageDestinationCreateWithURL(
+    outputURL as CFURL, UTType.png.identifier as CFString, 1, nil
+) else { fail("cannot write \(outputURL.path)") }
 CGImageDestinationAddImage(destination, image, nil)
-guard CGImageDestinationFinalize(destination) else {
-    FileHandle.standardError.write(Data("error: cannot finish \(url.path)\n".utf8))
-    exit(1)
-}
-print("Wrote \(url.path)")
+guard CGImageDestinationFinalize(destination) else { fail("cannot finish \(outputURL.path)") }
+print("Wrote \(outputURL.path)")

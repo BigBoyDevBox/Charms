@@ -6,6 +6,9 @@ import UniformTypeIdentifiers
 
 // Resample a square raster source (≥ 1024×1024) into all ten standard macOS
 // iconset PNGs at 16, 32, 128, 256, 512 points × 1x/2x.
+//
+// Transparency is kept. The master is a rounded tile on a transparent canvas,
+// and a context without an alpha channel would paint the canvas black behind it.
 
 let args = CommandLine.arguments
 guard args.count == 3 else {
@@ -55,7 +58,7 @@ for size in sizes {
             bitsPerComponent: 8,
             bytesPerRow: 0,
             space: CGColorSpace(name: CGColorSpace.sRGB)!,
-            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else {
             FileHandle.standardError.write("Error: cannot create graphics context for \(pixels)×\(pixels)\n".data(using: .utf8)!)
             exit(1)
