@@ -6,6 +6,10 @@ original estimates and permission assumptions below are historical; the
 current contract is in [PLAN.md](PLAN.md), and verified behavior is in
 [docs/compatibility.md](docs/compatibility.md).
 
+Related deferred proposals are retained separately:
+[typed-trigger literal boundaries](docs/reviews/typed-trigger-boundary-proposal.md)
+and [Escape recovery](docs/reviews/typed-trigger-escape-proposal.md).
+
 ## §8.1 Catalogue coverage vs. the §13 memory budget
 
 **Resolved, 10 November 2026:** PLAN §8 defines coverage and representation;
