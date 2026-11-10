@@ -79,6 +79,10 @@ jobs:
             || { echo "::error::built app lost its bundle identifier"; exit 1; }
           test -f "$APP/Contents/Resources/AppIcon.icns" \
             || { echo "::error::built app lacks its icon"; exit 1; }
+          # The icon is a rounded tile on a transparent canvas. Resampling it
+          # without an alpha channel once put a black square behind the tile.
+          sips -g hasAlpha "$APP/Contents/Resources/AppIcon.icns" | grep -q 'hasAlpha: yes' \
+            || { echo "::error::built app's icon lost its transparency"; exit 1; }
           cmp -s Resources/catalog.txt "$APP/Contents/Resources/catalog.txt" \
             || { echo "::error::built app lacks the character catalogue, or carries a different one"; exit 1; }
           test "$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$APP/Contents/Info.plist")" = 'true' \
